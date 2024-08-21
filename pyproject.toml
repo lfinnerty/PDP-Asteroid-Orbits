@@ -13,11 +13,14 @@ authors = [
 dependencies = [
     "matplotlib",
     "numpy",
+    "scipy",
     "pandas",
     "pytest",
+    "pytest-mpl",
     "tqdm",
     "jupyter",
     "astropy",
+    "ipympl",
     "pyorb"
 ]
 requires-python = ">=3.9"
