@@ -37,7 +37,7 @@ def parallax_to_dist(t1, p1, e1, t2, p2, e2):
     return dist, dist_err
 
 def ra_dist_to_r_theta(time, ra, rp):
-    theta_earth = 2*np.pi/365.25 *(time-)#JD of march 22 2024)
+    theta_earth = 2*np.pi/365.25 *(time-2460392.400856)#JD of march 22 2024)
 
     r = np.sqrt(1+rp**2 - 2*rp*np.cos(np.pi+theta_earth+ra))
     rerr = 
@@ -56,10 +56,11 @@ def dist_to_parallax(ra, dist, t1, t2):
 def inject_asteriod(ra, parallax, image):
     pass
 
-def plot_ellipse(a, e, omega):
-    thets=np.linspace(0,2*np.pi,200)
-    rs = make_orbit(thets,a,e,omega)
-    x, y = rthet_to_xy(rs,thets)
+def plot_ellipse(tperi, a, e, omega):
+    period = np.sqrt(a**3)*365.25
+    times = np.linspace(tperi,tperi+period,200)
+    rs, nus = make_orbit(times, tperi,a,e,omega)
+    x, y = rthet_to_xy(rs,nus)
     ### Fix me eventually will want to plot onto a common axes object thats passed in
     # ax.scatter(x,y)
     plt.scatter(x,y)
