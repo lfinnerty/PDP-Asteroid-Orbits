@@ -21,7 +21,7 @@ def make_orbit(times, tperi, a, e, omega):
     M = 2*np.pi*(times-tperi)/period
     E = solve_kepler(M, e)
     ### FIXME check if there's a sign issue for the arctangent
-    nus = 2*np.arctangent(np.sqrt((1+e)/(1-e))*np.tangent(E/2))
+    nus = 2*np.arctangent(np.sqrt((1+e)/(1-e))*np.tan(E/2))
     rs = a*(1-e*np.cos(nus))
     return rs, nus
 
@@ -50,7 +50,7 @@ def ra_dist_to_r_theta(time, ra, rp):
 def r_theta_to_ra_dist(time, r, theta):
     pass
 
-def dist_to_parallax(ra, dist):
+def dist_to_parallax(ra, dist, t1, t2):
     pass
 
 def inject_asteriod(ra, parallax, image):
