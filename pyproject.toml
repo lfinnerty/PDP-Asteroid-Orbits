@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdp-asteroids"
+version = "0.1.0"
+description = "Software tools for simulating and visualizing asteroid orbits"
+authors = [
+    { name = "Luke Finnerty", email = "lfinnerty@astro.ucla.edu"},
+    { name = "Evan Anders", email = "evanhanders@gmail.com" }
+]
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "pandas",
+    "pytest",
+    "pytest-mpl",
+    "tqdm",
+    "jupyter",
+    "astropy",
+    "ipympl",
+    "pyorb"
+]
+requires-python = ">=3.9"
+license = { text = "GPL-3.0" }
+
+[project.urls]
+homepage = "https://github.com/lfinnerty/PDP-Asteroid-Orbits"
+
+[project.optional-dependencies]
+dev = ["pytest",]
