@@ -37,72 +37,49 @@ def make_orbit(times, phase0, a, e,omega):
 
     return rs, nus+omega
 
-def parallax_to_dist(t1, p1, e1, t2, p2, e2):
-    theta_earth = 0.5*2*np.pi*(t2-t1)/365.25
-    baseline = np.sin(theta_earth)
+def parallax_to_dist(tp1, e1, p2, e2, dt):
+    theta_earth = 2*np.pi*dt/365.25
+    baseline = np.sin(theta_earth/2.) ### AU
 
     ra1, d1 = p1
     ra2, d2 = p2
-    parallax = np.sqrt((ra1-ra2)**2 + (d1-d2)**2) ### fixme calculate the angle
-    dist = baseline/parallax
+    parallax = np.sqrt((ra1-ra2)**2 + (d1-d2)**2) ### Arcseconds
+    dist = baseline/np.sin(parallax/206265)
 
     ### Calculate distance error
     # dist_err = 
 
     return dist, dist_err
 
+def dist_to_parallax(time, r, theta, dt):
+    theta_earth = 2*np.pi/365.25 *(time-2460392.400856)
+    r_earth = 1
+    xe, ye = rthet_to_xy(r_earth, theta_earth)
+    xa, ya = rthet_to_xy(r, theta)
+    distance = np.sqrt((xe-xa)**2+(ye-ya)**2)
+
+    dtheta = dt*2*np.pi/365.25
+    baseline = np.sin(dtheta/2) ### In AU
+    parallax = np.arcsin(baseline/distance) ### In rad
+
+    return parallax*206265 ### In AU
+
 def ra_dist_to_r_theta(time, ra, rp):
-    theta_earth = 2*np.pi/365.25 *(time-2460392.400856)#JD of march 22 2024)
+    ### FIXME do this vector addition based, it's easier 
+    heta_earth = 2*np.pi/365.25 *(time-2460392.400856)
+    r_earth = 1
+    xe, ye = rthet_to_xy(r_earth, theta_earth)
 
-    r = np.sqrt(1+rp**2 - 2*rp*np.cos(np.pi+theta_earth+ra))
-    # rerr = 
+    dx, dy = rthet_to_xy(ra, rp)
 
-    theta= theta_earth + rp/r * np.sin(np.pi+theta_earth - ra)
-    # theta_err = 
+    xtot = xe+dx
+    ytot = ye+dy
+    r, theta = xy_to_rthet(xtot, ytot)
 
     return r, rerr, theta, theta_err
 
-def r_theta_to_ra_dist(time, r, theta):
-    theta_earth = 2*np.pi/365.25 *(time-2460392.400856)
-    
-    dist = np.sqrt(1+r**2 - 2*r*np.cos(theta_earth-theta))
-
-    ra = theta_earth+np.pi - np.arcsin(r/dist*(theta-theta_earth))
-
-    return dist, ra
-
-
-
-def dist_to_parallax(ra, dist, t1, t2):
-    theta_earth = 0.5*2*np.pi*(t2-t1)/365.25
-    baseline = np.sin(theta_earth)
-
-    parallax = baseline/dist
-    ### Break this up into a pair of positions
-
-
-
-    p1 = (ra1,d1)
-    p2 = (ra2,p2)
-    return p1, p2
-
-
-def inject_asteriod(ra, parallax, image):
+def inject_asteroid(image, time, parallax):
     pass
-
-def plot_ellipse(tperi, a, e, omega):
-    period = np.sqrt(a**3)*365.25
-    times = np.linspace(tperi,tperi+period,200)
-    rs, nus = make_orbit(times, tperi,a,e,omega)
-    x, y = rthet_to_xy(rs,nus)
-    ### Fix me eventually will want to plot onto a common axes object thats passed in
-    # ax.scatter(x,y)
-    plt.scatter(x,y)
-    # plt.show()
-
-def fit_orb_params(xs, ys, dxs, dys):
-    pass
-
 
 def prior_transform(u):
     x = np.array(u)
@@ -192,4 +169,4 @@ if __name__ == '__main__':
     plt.show()
 
 
-    
+
