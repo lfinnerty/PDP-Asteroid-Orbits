@@ -62,7 +62,7 @@ def dist_to_parallax(time, r, theta, dt):
     baseline = np.sin(dtheta/2) ### In AU
     parallax = np.arcsin(baseline/distance) ### In rad
 
-    return parallax*206265 ### In AU
+    return parallax*206265 ### In arcsec
 
 def ra_dist_to_r_theta(time, ra, rp):
     ### FIXME do this vector addition based, it's easier 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     ### True parameters
     p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
     period = 365.25*np.sqrt(a**3)
-    print(period)
+    print('Period [days]:', period)
     ### Given a list of dates, predict observables
     obsdates = ['2025-01-18', '2025-03-02', '2025-04-01']#, '2025-04-29', '2025-05-12', '2025-05-29', '2025-06-29']
     # obsdates = ['2025-01-'+str(i).zfill(2) for i in range(1,32,2)]
@@ -134,16 +134,25 @@ if __name__ == '__main__':
 
     jds = []
     for date in obsdates:
-        jds.append(Time(date+'T23:59:59', format='isot', scale='utc').jd)
+        jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
     jds = np.asarray(jds)
     
     rs, thetas = make_orbit(jds, p0, a, e, omega)
 
-    ### From the rs, thetas of the orbits, make the observables
-    # dists, ras = r_theta_to_ra_dist(jds, rs, thetas)
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    for i in range(len(rs)):
+        ax.scatter(2*np.pi/365.25 *(jds[i]-2460392.400856), 1)
+        ax.scatter(thetas[i], rs[i])
+        parallax = dist_to_parallax(jds[i], rs[i], thetas[i], 0.3)
+        print(obsdates[i])
+        print('Parallax:', parallax)
+        dtheta = 0.3*2*np.pi/365.25
+        baseline = np.sin(dtheta/2)
+        print('Distance:', 206265*baseline/parallax)
+    plt.show()
 
 
-    ### Add errors to rs, thetas
+    ## Add errors to rs, thetas
     rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
     rs_fit=rs+rs_err
     thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
