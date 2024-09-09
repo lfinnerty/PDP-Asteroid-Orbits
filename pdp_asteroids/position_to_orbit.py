@@ -153,6 +153,8 @@ if __name__ == '__main__':
 
 
     ## Add errors to rs, thetas
+    ### Note that students will give us values for r and its error
+    ### We will know theta already from the orbital parameters
     rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
     rs_fit=rs+rs_err
     thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
