@@ -21,4 +21,8 @@ cd PDP-Asteroid-Orbits
 pip install -e .
 ```
 
-And you should be good to go!
+And you should be good to go! It's a good idea to run the tests locally to make sure everything works:
+
+```
+pytest
+```
