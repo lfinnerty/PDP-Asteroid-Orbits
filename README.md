@@ -10,6 +10,7 @@ If you use conda, this can be accomplished for a "pdp" environment by typing:
 ```sh
 conda create -n "pdp" python=3.9
 conda activate pdp
+conda install multinest
 ```
 
 Then, clone this repository and install it and its dependencies:
@@ -20,4 +21,8 @@ cd PDP-Asteroid-Orbits
 pip install -e .
 ```
 
-And you should be good to go!
+And you should be good to go! It's a good idea to run the tests locally to make sure everything works:
+
+```
+pytest
+```

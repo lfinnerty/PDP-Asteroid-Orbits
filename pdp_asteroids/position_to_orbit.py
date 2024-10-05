@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
@@ -7,6 +10,8 @@ from pymultinest.solve import solve
 import corner
 from glob import glob
 from astropy.io import fits
+
+FILE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 
 def xy_to_rthet(x, y):
     r = np.sqrt(x**2 + y**2)
@@ -89,7 +94,7 @@ def Gauss2D(x, y, amp, x0,y0,sigx,sigy,rot=0):
     return amp*np.exp(-a*(x-x0)**2 - b*(x-x0)*(y-y0) - c*(y-y0)**2)
 
 
-def inject_asteroid(hdulst, parallax, obsdate,obsdelta, fwhm=3.5, fluxlevel=20,noiselevel=50):
+def inject_asteroid(hdulst, parallax, obsdate,obsdelta, fwhm=3.5, fluxlevel=20,noiselevel=50, output_dir: Path=FILE_DIR):
     ### Decide where to add inital PSF
     data = hdulst[0].data
     data[np.isnan(data)] = 3.
@@ -137,9 +142,11 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta, fwhm=3.5, fluxlevel=20,n
     # plt.show()
     
     ### Write to disk
-    print(obsdate)
-    fits.writeto('injected_images/'+obsdate+'_frame1.fits', data=im1, header=header)
-    fits.writeto('injected_images/'+obsdate+'_frame2.fits', data=im2, header=header)
+    out_dir = output_dir/'injected_images'
+    out_dir.mkdir(exist_ok=True, parents=True)
+
+    fits.writeto(out_dir/(obsdate+'_frame1.fits'), data=im1, header=header, overwrite=True)
+    fits.writeto(out_dir/(obsdate+'_frame2.fits'), data=im2, header=header, overwrite=True)
 
 
     ### Return two image arrays
