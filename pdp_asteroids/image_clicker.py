@@ -1,51 +1,58 @@
 from typing import Tuple
+import numpy as np
 from matplotlib.backend_bases import MouseEvent
-
-# Import required libraries
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import ipywidgets as widgets
 from IPython.display import display, clear_output
+from astropy.io import fits
+from astropy.visualization import simple_norm
+from astropy.wcs import WCS
 
 class ImageClicker:
-
     def __init__(self, file_name: str):
         self.coords = []
         self.file_name = file_name
-
-        self.refresh_button = widgets.Button(description="Refresh Plot")
+        self.refresh_button = widgets.Button(description="Refresh (clear click)")
         self.output = widgets.Output()
         self.fig = None
         self.ax = None
         self.cid = None
-    
+        self.wcs = None
+
     def get_coords(self) -> Tuple[float, float]:
         return self.coords
-    
-    def run_plot_context(self) -> None:
 
+    def run_plot_context(self) -> None:
         def initialize_image() -> None:
-            img = mpimg.imread(self.file_name)
-            self.ax.imshow(img)
+            with fits.open(self.file_name) as hdul:
+                image_data = hdul[0].data
+                self.wcs = WCS(hdul[0].header)
+
+            norm = simple_norm(image_data, 'linear', percent=99)
+            self.ax.imshow(image_data, cmap='gray', norm=norm)
             self.fig.canvas.draw()
 
-        def onclick(event : MouseEvent) -> None:
-            # Store the x and y coordinates
+        def onclick(event: MouseEvent) -> None:
+            if event.inaxes != self.ax:
+                return
+
             ix, iy = event.xdata, event.ydata
-            self.coords.append((ix, iy))
-            
+            self.coords.append(np.array(self.wcs.all_pix2world(ix, iy, 0)))
+
             # Add a circle with crosshair on the image
             self.ax.scatter(ix, iy, color='red', s=100, marker='o', facecolor='none')
             self.ax.scatter(ix, iy, color='red', s=100, marker='+', lw=0.5)
             self.fig.canvas.draw()
 
-            # Stop the event handler after two points are clicked
-            if len(self.coords) >= 2:
-                self.fig.canvas.mpl_disconnect(self.cid)
-                #TODO: Convert coordinates into RA and DEC
-                # print("Coordinates captured:", coords)
+            # Convert pixel coordinates to RA and DEC
+            if self.wcs:
+                ra, dec = self.wcs.all_pix2world(ix, iy, 0)
+                print(f"Clicked at RA: {ra:.5f}, Dec: {dec:.5f}")
 
-        
+            # Stop the event handler after one point is clicked
+            if len(self.coords) >= 1:
+                self.fig.canvas.mpl_disconnect(self.cid)
+
         display(self.refresh_button)
         display(self.output)
 
