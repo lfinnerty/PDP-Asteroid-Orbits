@@ -91,7 +91,7 @@ def test_injection(setup_test_data):
 
     ### Image filenames
     root_dir = Path(pdp_asteroids.__file__).parent
-    image_list = [str(s) for s in list((root_dir/'imagedata').glob('*.fits'))]
+    image_list = [str(s) for s in list((root_dir/'imagedata').glob('d*.fits'))]
     nimages = len(image_list)
 
     ### True parameters
