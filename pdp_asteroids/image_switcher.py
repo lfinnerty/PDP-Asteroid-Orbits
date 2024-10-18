@@ -5,11 +5,12 @@ import numpy as np
 from IPython.display import display
 
 class FitsImageSwitcher:
-    def __init__(self, file1, file2, downsample_factor=4):
+    def __init__(self, file1, file2, downsample_factor=4, saturation_factor=0.1):
         self.file1 = file1
         self.file2 = file2
         self.downsample_factor = downsample_factor
         self.fig = None
+        self.saturation_factor = saturation_factor
         self.create_figure()
 
     def load_and_process_fits(self, file):
@@ -22,7 +23,7 @@ class FitsImageSwitcher:
         # Normalize the data
         vmin, vmax = np.percentile(data, [1, 99])
         norm_data = (data - vmin) / (vmax - vmin)
-        norm_data = np.clip(norm_data, 0, norm_data.max()*0.03)
+        norm_data = np.clip(norm_data, 0, norm_data.max()*self.saturation_factor)
         
         return norm_data
 

@@ -40,7 +40,7 @@ class ImageClicker:
         
         fig.add_trace(go.Heatmap(
             z=data,
-            colorscale='Greys',
+            colorscale='Greys_r',
             showscale=False,
             hoverinfo='none'
         ))
