@@ -23,7 +23,12 @@ dependencies = [
     "ipympl",
     "pyorb",
     "pymultinest",
-    "corner"
+    "corner",
+    "plotly",
+    "dash",
+    "multiprocess",
+    "selenium",
+    "percy"
 ]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }

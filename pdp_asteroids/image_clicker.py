@@ -1,74 +1,134 @@
-from typing import Tuple
+from typing import List, Optional
 import numpy as np
-from matplotlib.backend_bases import MouseEvent
-import matplotlib.pyplot as plt
-import ipywidgets as widgets
-from IPython.display import display, clear_output
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from astropy.io import fits
-from astropy.visualization import simple_norm
 from astropy.wcs import WCS
+import dash
+from dash import dcc, html, clientside_callback
+from dash.dependencies import Input, Output, State
 
 class ImageClicker:
-    def __init__(self, file_name: str):
-        self.coords = []
+    def __init__(self, file_name: str, downsample_factor: int = 1):
+        self.coords : Optional[np.ndarray] = None
         self.file_name = file_name
-        self.refresh_button = widgets.Button(description="Refresh (clear click)")
-        self.output = widgets.Output()
+        self.downsample_factor = downsample_factor
         self.fig = None
-        self.ax = None
-        self.cid = None
         self.wcs = None
+        self.app = None
 
-    def get_coords(self) -> Tuple[float, float]:
+    def get_coords(self) -> Optional[np.ndarray]:
         return self.coords
 
+    def load_and_process_fits(self):
+        with fits.open(self.file_name) as hdul:
+            data = hdul[0].data
+            self.wcs = WCS(hdul[0].header)
+        
+        # Downsample the image
+        data = data[::self.downsample_factor, ::self.downsample_factor]
+        
+        # Normalize the data
+        vmin, vmax = np.percentile(data, [1, 99])
+        norm_data = (data - vmin) / (vmax - vmin)
+        norm_data = np.clip(norm_data, 0, 0.1*norm_data.max())
+        
+        return norm_data
+
+    def create_figure(self, data):
+        fig = make_subplots(rows=1, cols=1)
+        
+        fig.add_trace(go.Heatmap(
+            z=data,
+            colorscale='Greys',
+            showscale=False,
+            hoverinfo='none'
+        ))
+
+        fig.update_layout(
+            height=600,
+            width=600,
+            title_text="Click on the image to mark a point",
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+        )
+
+        # Reverse y-axis to match astronomical image convention
+        fig.update_yaxes(autorange="reversed")
+
+        return fig
+
     def run_plot_context(self) -> None:
-        def initialize_image() -> None:
-            with fits.open(self.file_name) as hdul:
-                image_data = hdul[0].data
-                self.wcs = WCS(hdul[0].header)
+        app = dash.Dash(__name__, use_pages=False)
+    
+        data = self.load_and_process_fits()
+        self.fig = self.create_figure(data)
 
-            norm = simple_norm(image_data, 'linear', percent=99)
-            self.ax.imshow(image_data, cmap='gray', norm=norm)
-            self.fig.canvas.draw()
+        app.layout = html.Div([
+            dcc.Graph(id='image-plot', figure=self.fig),
+            html.Div(id='click-data'),
+        ])
 
-        def onclick(event: MouseEvent) -> None:
-            if event.inaxes != self.ax:
-                return
+        clientside_callback(
+            """
+            function(clickData, figure) {
+                if (clickData === null) return dash_clientside.no_update;
+                
+                const newClick = {
+                    x: clickData.points[0].x,
+                    y: clickData.points[0].y
+                };
+                
+                // Create a new trace for the clicked point
+                const newTrace = {
+                    x: [newClick.x],
+                    y: [newClick.y],
+                    mode: 'markers',
+                    marker: {symbol: 'cross', size: 10, color: 'red'},
+                    showlegend: false,
+                    type: 'scatter'
+                };
+                
+                // Return the figure with only the heatmap and the new marker
+                return {
+                    ...figure,
+                    data: [figure.data[0], newTrace]
+                };
+            }
+            """,
+            Output('image-plot', 'figure'),
+            Input('image-plot', 'clickData'),
+            State('image-plot', 'figure')
+        )
 
-            ix, iy = event.xdata, event.ydata
-            self.coords.append(np.array(self.wcs.all_pix2world(ix, iy, 0)))
+        @app.callback(
+        Output('click-data', 'children'),
+        Input('image-plot', 'clickData'),
+        )
+        def update_click_data(clickData):
+            if clickData:
+                x, y = clickData['points'][0]['x'], clickData['points'][0]['y']
+                ra, dec = self.wcs.all_pix2world(x * self.downsample_factor, y * self.downsample_factor, 0)
+                self.coords = np.array([ra, dec])
+                return f"Clicked at RA: {ra:.5f}, Dec: {dec:.5f}"
 
-            # Add a circle with crosshair on the image
-            self.ax.scatter(ix, iy, color='red', s=100, marker='o', facecolor='none')
-            self.ax.scatter(ix, iy, color='red', s=100, marker='+', lw=0.5)
-            self.fig.canvas.draw()
+            return "Click on the image to mark a point"
 
-            # Convert pixel coordinates to RA and DEC
-            if self.wcs:
-                ra, dec = self.wcs.all_pix2world(ix, iy, 0)
-                print(f"Clicked at RA: {ra:.5f}, Dec: {dec:.5f}")
+        self.app = app
 
-            # Stop the event handler after one point is clicked
-            if len(self.coords) >= 1:
-                self.fig.canvas.mpl_disconnect(self.cid)
+    def add_hover_template(self):
+        if self.fig is not None and self.wcs is not None:
+            ny, nx = self.fig.data[0].z.shape
+            y, x = np.mgrid[0:ny, 0:nx]
+            ra, dec = self.wcs.all_pix2world(x * self.downsample_factor, y * self.downsample_factor, 0)
 
-        display(self.refresh_button)
-        display(self.output)
+            hovertemplate = 'RA: %{customdata[0]:.5f}<br>Dec: %{customdata[1]:.5f}'
+            self.fig.data[0].customdata = np.dstack((ra, dec))
+            self.fig.data[0].hovertemplate = hovertemplate
+            self.fig.data[0].hoverinfo = 'text'
 
-        # Display the initial figure
-        with self.output:
-            clear_output(wait=True)
-            self.fig, self.ax = plt.subplots()
-            # Connect the click event to the handler
-            self.cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
+            if self.app is not None:
+                self.app.layout.children[0].figure = self.fig
 
-            def refresh_plot(b: widgets.Button) -> None:
-                self.coords = []
-                with self.output:
-                    self.ax.clear()
-                    self.cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
-                    initialize_image()
-
-            self.refresh_button.on_click(refresh_plot)
-            initialize_image()
+    def display(self):
+        if self.app is not None:
+            self.app.run_server(mode='inline')
