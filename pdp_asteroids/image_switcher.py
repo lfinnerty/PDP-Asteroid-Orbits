@@ -22,7 +22,7 @@ class FitsImageSwitcher:
         # Normalize the data
         vmin, vmax = np.percentile(data, [1, 99])
         norm_data = (data - vmin) / (vmax - vmin)
-        norm_data = np.clip(norm_data, 0, norm_data.max()*0.1)
+        norm_data = np.clip(norm_data, 0, norm_data.max()*0.03)
         
         return norm_data
 
