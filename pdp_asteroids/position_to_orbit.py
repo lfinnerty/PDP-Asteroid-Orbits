@@ -106,9 +106,9 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta,  fwhm, fluxl
         data = data[:,::-1]
 
     header = hdulst[0].header
-    header['obsdt'] = obsdelta
-    header['jd'] = jd
-    header['theta'] = theta
+    header.append(('obsdt',obsdelta,'Time in hours'),end=True)
+    header.append(('jd', jd, 'Julian date'),end=True)
+    header.append(('theta', theta, 'angle'),end=True)
     # plt.imshow(data,vmin=np.nanpercentile(data,5),vmax=np.nanpercentile(data,95))
     # plt.show()
 
