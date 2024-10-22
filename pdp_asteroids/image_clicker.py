@@ -11,6 +11,7 @@ from dash.dependencies import Input, Output, State
 class ImageClicker:
     def __init__(self, file_name: str, downsample_factor: int = 1,saturation_factor: float = 0.1):
         self.coords : Optional[np.ndarray] = None
+        self.err : Optional[np.ndarray] = None
         self.file_name = file_name
         self.downsample_factor = downsample_factor
         self.saturation_factor = saturation_factor
@@ -115,7 +116,7 @@ class ImageClicker:
                 ra, dec = self.wcs.all_pix2world(x * self.downsample_factor, y * self.downsample_factor, 0)
                 self.coords = np.array([ra, dec])
                 self.err = [3.5*np.array(self.wcs.cdelt)]
-                return f"Clicked at RA: {ra:.5f}, Dec: {dec:.5f}"
+                return f"Clicked at RA: {ra:.5f} +/- {self.err[0]:.7f}, Dec: {dec:.5f} +/- {self.err[1]:.7f}"
 
             return "Click on the image to mark a point"
 
