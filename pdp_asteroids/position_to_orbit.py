@@ -44,14 +44,14 @@ def make_orbit(times, phase0, a, e,omega):
 
     return rs, nus+omega
 
-def parallax_to_dist(tp1, e1, p2, e2, dt):
+def parallax_to_dist(p1, e1, p2, e2, dt):
     theta_earth = 2*np.pi*dt/365.25
     baseline = np.sin(theta_earth/2.) ### AU
 
     ra1, d1 = p1
     ra2, d2 = p2
-    parallax = np.sqrt((ra1-ra2)**2 + (d1-d2)**2) ### Arcseconds
-    dist = baseline/np.sin(parallax/206265)
+    parallax = np.sqrt((ra1-ra2)**2 + (d1-d2)**2) ### Degrees
+    dist = baseline/np.sin(parallax)
 
     ### Calculate distance error
     ### Note that the WCS has intrinsic error values we can use
@@ -78,7 +78,7 @@ def ra_dist_to_r_theta(time, ra, rp):
     r_earth = 1
     xe, ye = rthet_to_xy(r_earth, theta_earth)
 
-    dx, dy = rthet_to_xy(ra, rp)
+    dx, dy = rthet_to_xy(rp,ra)
 
     xtot = xe+dx
     ytot = ye+dy
@@ -145,12 +145,14 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta, fwhm=3.5, fluxlevel=20,n
     out_dir = output_dir/'injected_images'
     out_dir.mkdir(exist_ok=True, parents=True)
 
-    fits.writeto(out_dir/(obsdate+'_frame1.fits'), data=im1, header=header, overwrite=True)
-    fits.writeto(out_dir/(obsdate+'_frame2.fits'), data=im2, header=header, overwrite=True)
+    fname1 = out_dir/(obsdate+'_frame1.fits')
+    fname2 = out_dir/(obsdate+'_frame2.fits')
+    fits.writeto(fname1, data=im1, header=header, overwrite=True)
+    fits.writeto(fname2, data=im2, header=header, overwrite=True)
 
 
     ### Return two image arrays
-    return im1, im2
+    return im1, im2, fname1, fname2
 
 def prior_transform(u):
     x = np.array(u)
@@ -191,6 +193,53 @@ class logl():
         self.thetaerrs = thetaerrs
     def __call__(self, x):
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
+
+
+def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
+    prefix = 'fit_results/'
+    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
+                    outputfiles_basename=prefix, verbose=False, resume=False)
+    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+
+
+def make_images(obsdate, jd, r, theta, delta):
+    parallax = dist_to_parallax(jds, rs, theta, delta)
+    dtheta = delta*2*np.pi/365.25
+    baseline = np.sin(dtheta/2)
+
+    ### Pick an image
+    idx = np.random.randint(0,nimages)
+    hdulst = fits.open(image_list[idx])
+    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta)
+
+    return im1, im2, f1, f2
+
+def make_jds(dates):
+    jds = []
+    for date in obsdates:
+        jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
+    jds = np.asarray(jds)
+    return jds
+
+
+def plot_fit(rs_fit, thetas_fit, samples, truths=None):
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ### Plot Earth
+
+    ### Plot asteroid
+    if truth is not None:
+        ptimes = np.linspace(0, 2*period,300)
+        true_r, true_theta = make_orbit(ptimes, *truths)
+        ax.plot(true_theta, true_r, color='k')
+    ax.scatter(thetas_fit, rs_fit)
+    ptimes = np.linspace(0, 2*period,300)
+    for i in range(200):
+        rs, thetas = make_orbit(ptimes, *samples[i])
+        ax.plot(thetas,rs,color='r',alpha=0.05)
+    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
+    
+    return fig
 
 
 if __name__ == '__main__':

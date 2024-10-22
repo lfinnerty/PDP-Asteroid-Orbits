@@ -18,6 +18,7 @@ class ImageClicker:
         self.app = None
 
     def get_coords(self) -> Optional[np.ndarray]:
+        ### FIXME check hat these are in degrees
         return self.coords
 
     def load_and_process_fits(self):

@@ -1,0 +1,29 @@
+Metadata-Version: 2.1
+Name: pdp-asteroids
+Version: 0.1.0
+Summary: Software tools for simulating and visualizing asteroid orbits
+Author-email: Luke Finnerty <lfinnerty@astro.ucla.edu>, Evan Anders <evanhanders@gmail.com>
+License: GPL-3.0
+Project-URL: homepage, https://github.com/lfinnerty/PDP-Asteroid-Orbits
+Requires-Python: >=3.9
+License-File: LICENSE
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: pytest
+Requires-Dist: pytest-mpl
+Requires-Dist: tqdm
+Requires-Dist: jupyter
+Requires-Dist: astropy
+Requires-Dist: ipympl
+Requires-Dist: pyorb
+Requires-Dist: pymultinest
+Requires-Dist: corner
+Requires-Dist: plotly
+Requires-Dist: dash
+Requires-Dist: multiprocess
+Requires-Dist: selenium
+Requires-Dist: percy
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
