@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from astropy.time import Time
 import json
-from pymultinest.solve import solve
+# from pymultinest.solve import solve
+import dynesty
 import corner
 from glob import glob
 from astropy.io import fits
@@ -201,7 +202,15 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
                     outputfiles_basename=prefix, verbose=False, resume=False)
     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+    return samples
 
+
+def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
+    dsampler = dynesty.NestedSampler(loglike_func, prior_transform_func, 4,
+                                             nlive=400)
+    sampler.run_nested(dlogz=0.5)
+    res = dsampler.results
+    return res.samples_equal()
 
 def make_images(obsdate, jd, r, theta, delta):
     parallax = dist_to_parallax(jds, rs, theta, delta)
@@ -242,73 +251,73 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     return fig
 
 
-if __name__ == '__main__':
-    ### Image filenames
-    image_list = glob('imagedata/*.fits')
-    nimages = len(image_list)
-    print(image_list)
+# if __name__ == '__main__':
+#     ### Image filenames
+#     image_list = glob('imagedata/*.fits')
+#     nimages = len(image_list)
+#     print(image_list)
 
-    ### True parameters
-    p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
-    period = 365.25*np.sqrt(a**3)
+#     ### True parameters
+#     p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
+#     period = 365.25*np.sqrt(a**3)
 
-    print('Period [days]:', period)
+#     print('Period [days]:', period)
     
 
-    ### Given a list of dates, predict observables
-    obsdates = ['2025-01-18', '2025-03-02', '2025-04-01', '2025-04-29', '2025-05-12']
-    obsdelta = 4/24. ### In days
+#     ### Given a list of dates, predict observables
+#     obsdates = ['2025-01-18', '2025-03-02', '2025-04-01', '2025-04-29', '2025-05-12']
+#     obsdelta = 4/24. ### In days
 
-    jds = []
-    for date in obsdates:
-        jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
-    jds = np.asarray(jds)
+#     jds = []
+#     for date in obsdates:
+#         jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
+#     jds = np.asarray(jds)
     
-    rs, thetas = make_orbit(jds, p0, a, e, omega)
+#     rs, thetas = make_orbit(jds, p0, a, e, omega)
 
-    for i in range(len(rs)):
-        # ax.scatter(2*np.pi/365.25 *(jds[i]-2460392.400856), 1)
-        # ax.scatter(thetas[i], rs[i])
-        parallax = dist_to_parallax(jds[i], rs[i], thetas[i], obsdelta)
-        dtheta = obsdelta*2*np.pi/365.25
-        baseline = np.sin(dtheta/2)
-        print(obsdates[i], 'Parallax:', parallax, 'Distance:', 206265*baseline/parallax)
+#     for i in range(len(rs)):
+#         # ax.scatter(2*np.pi/365.25 *(jds[i]-2460392.400856), 1)
+#         # ax.scatter(thetas[i], rs[i])
+#         parallax = dist_to_parallax(jds[i], rs[i], thetas[i], obsdelta)
+#         dtheta = obsdelta*2*np.pi/365.25
+#         baseline = np.sin(dtheta/2)
+#         print(obsdates[i], 'Parallax:', parallax, 'Distance:', 206265*baseline/parallax)
 
-        ### Pick an image
-        idx = np.random.randint(0,nimages)
-        hdulst = fits.open(image_list[idx])
-        im1, im2 = inject_asteroid(hdulst, parallax, obsdates[i], obsdelta)
-
-
-
-    ## Add errors to rs, thetas
-    ### Note that students will give us values for r and its error
-    ### We will know theta already from the orbital parameters
-    rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
-    rs_fit=rs+rs_err
-
-    ### This one we specify
-    thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
-    thetas_fit = thetas+thetas_err
+#         ### Pick an image
+#         idx = np.random.randint(0,nimages)
+#         hdulst = fits.open(image_list[idx])
+#         im1, im2 = inject_asteroid(hdulst, parallax, obsdates[i], obsdelta)
 
 
-    prefix = 'fit_results/'
-    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
-                    outputfiles_basename=prefix, verbose=False, resume=False)
-    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+
+#     ## Add errors to rs, thetas
+#     ### Note that students will give us values for r and its error
+#     ### We will know theta already from the orbital parameters
+#     rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
+#     rs_fit=rs+rs_err
+
+#     ### This one we specify
+#     thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
+#     thetas_fit = thetas+thetas_err
 
 
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.scatter(thetas_fit, rs_fit)
-    ptimes = np.linspace(0, 2*period,300)
-    true_r, true_theta = make_orbit(ptimes, p0, a, e, omega)
-    ax.plot(true_theta, true_r, color='k')
-    for i in range(200):
-        rs, thetas = make_orbit(ptimes, *samples[i])
-        ax.plot(thetas,rs,color='r',alpha=0.05)
-    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
-    plt.show()
+#     prefix = 'fit_results/'
+#     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+#     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
+#                     outputfiles_basename=prefix, verbose=False, resume=False)
+#     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+
+
+#     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+#     ax.scatter(thetas_fit, rs_fit)
+#     ptimes = np.linspace(0, 2*period,300)
+#     true_r, true_theta = make_orbit(ptimes, p0, a, e, omega)
+#     ax.plot(true_theta, true_r, color='k')
+#     for i in range(200):
+#         rs, thetas = make_orbit(ptimes, *samples[i])
+#         ax.plot(thetas,rs,color='r',alpha=0.05)
+#     ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
+#     plt.show()
 
 
 
