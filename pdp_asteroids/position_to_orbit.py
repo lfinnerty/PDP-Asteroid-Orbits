@@ -214,7 +214,7 @@ def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
     return res.samples_equal()
 
 def make_images(obsdate, jd, r, theta, delta):
-    parallax = dist_to_parallax(jds, rs, theta, delta)
+    parallax = dist_to_parallax(jd, rs, theta, delta)
     dtheta = delta*2*np.pi/365.25
     baseline = np.sin(dtheta/2)
 
