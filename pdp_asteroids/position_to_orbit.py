@@ -196,16 +196,17 @@ class logl():
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
-    prefix = 'fit_results/'
-    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
-                    outputfiles_basename=prefix, verbose=False, resume=False)
-    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-    return samples
+# def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
+#     prefix = 'fit_results/'
+#     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+#     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
+#                     outputfiles_basename=prefix, verbose=False, resume=False)
+#     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+#     return samples
 
 
 def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
+    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
     dsampler = dynesty.NestedSampler(loglike_func, prior_transform_func, 4,
                                              nlive=400)
     sampler.run_nested(dlogz=0.5)
@@ -226,7 +227,7 @@ def make_images(obsdate, jd, r, theta, delta):
 
 def make_jds(dates):
     jds = []
-    for date in obsdates:
+    for date in dates:
         jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
     jds = np.asarray(jds)
     return jds
