@@ -19,8 +19,11 @@ class ImageClicker:
         self.app = None
 
     def get_coords(self) -> Optional[np.ndarray]:
-        ### FIXME check hat these are in degrees
+
         return self.coords
+
+    def get_err(self) -> Optional[np.ndarray]:
+        return self.err
 
     def load_and_process_fits(self):
         with fits.open(self.file_name) as hdul:
@@ -111,6 +114,7 @@ class ImageClicker:
                 x, y = clickData['points'][0]['x'], clickData['points'][0]['y']
                 ra, dec = self.wcs.all_pix2world(x * self.downsample_factor, y * self.downsample_factor, 0)
                 self.coords = np.array([ra, dec])
+                self.err = [3.5*np.array(self.wcs.cdelt)]
                 return f"Clicked at RA: {ra:.5f}, Dec: {dec:.5f}"
 
             return "Click on the image to mark a point"
