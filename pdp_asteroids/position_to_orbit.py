@@ -144,7 +144,7 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  fwhm, fluxlevel,noisele
     
     ### Write to disk
     out_dir = output_dir/'injected_images'/output_str
-    out_dir.mkdir(out_dir,exist_ok=True, parents=True)
+    out_dir.mkdir(exist_ok=True, parents=True)
     # out_dir.mkdir(exist_ok=True, parents=True)
 
     fname1 = out_dir/(obsdate+'_'+output_str+'_frame1.fits')
