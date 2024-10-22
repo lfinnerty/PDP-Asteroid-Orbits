@@ -95,7 +95,7 @@ def Gauss2D(x, y, amp, x0,y0,sigx,sigy,rot=0):
     return amp*np.exp(-a*(x-x0)**2 - b*(x-x0)*(y-y0) - c*(y-y0)**2)
 
 
-def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  fwhm, fluxlevel,noiselevel, output_dir: Path=FILE_DIR):
+def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
     ### Decide where to add inital PSF
     data = hdulst[0].data
     data[np.isnan(data)] = 3.
@@ -214,7 +214,7 @@ def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
     res = dsampler.results
     return res.samples_equal()
 
-def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noiselevel, output_dir: Path=FILE_DIR):
+def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
     parallax = dist_to_parallax(jd, r, theta, delta)
     dtheta = delta*2*np.pi/365.25
     baseline = np.sin(dtheta/2)
@@ -223,7 +223,7 @@ def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noisele
     nimages = len(image_list)
     idx = np.random.randint(0,nimages)
     hdulst = fits.open(image_list[idx])
-    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta,  fwhm, fluxlevel,noiselevel, output_dir=output_dir)
+    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta,  fwhm, fluxlevel,noiselevel,output_str output_dir=output_dir)
 
     return im1, im2, f1, f2
 
