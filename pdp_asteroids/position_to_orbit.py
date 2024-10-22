@@ -222,7 +222,7 @@ def make_images(obsdate, jd, r, theta, delta,image_list, output_dir: Path=FILE_D
     nimages = len(image_list)
     idx = np.random.randint(0,nimages)
     hdulst = fits.open(image_list[idx])
-    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta, fwhm=fwhm, fluxlevel=fluxlevel,noiselevel=noiselevel, output_str=output_str,output_dir: Path=FILE_DIR)
+    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta, output_dir: Path=FILE_DIR, fwhm=fwhm, fluxlevel=fluxlevel,noiselevel=noiselevel, output_str=output_str,)
 
     return im1, im2, f1, f2
 
