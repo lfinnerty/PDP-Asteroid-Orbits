@@ -99,6 +99,12 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  fwhm, fluxlevel,noisele
     ### Decide where to add inital PSF
     data = hdulst[0].data
     data[np.isnan(data)] = 3.
+    ### Randomly flip the data around
+    if np.random.uniform(0,1) > 0.5:
+        data = data[::-1,:]
+    if np.random.uniform(0,1) > 0.5:
+        data = data[:,::-1]
+
     header = hdulst[0].header
     # plt.imshow(data,vmin=np.nanpercentile(data,5),vmax=np.nanpercentile(data,95))
     # plt.show()

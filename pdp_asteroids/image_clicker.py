@@ -9,10 +9,11 @@ from dash import dcc, html, clientside_callback
 from dash.dependencies import Input, Output, State
 
 class ImageClicker:
-    def __init__(self, file_name: str, downsample_factor: int = 1):
+    def __init__(self, file_name: str, downsample_factor: int = 1,saturation_factor: float = 0.1):
         self.coords : Optional[np.ndarray] = None
         self.file_name = file_name
         self.downsample_factor = downsample_factor
+        self.saturation_factor = saturation_factor
         self.fig = None
         self.wcs = None
         self.app = None
@@ -32,7 +33,7 @@ class ImageClicker:
         # Normalize the data
         vmin, vmax = np.percentile(data, [1, 99])
         norm_data = (data - vmin) / (vmax - vmin)
-        norm_data = np.clip(norm_data, 0, 0.1*norm_data.max())
+        norm_data = np.clip(norm_data, 0, norm_data.max()*self.saturation_factor)
         
         return norm_data
 
