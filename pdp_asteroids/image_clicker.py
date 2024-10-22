@@ -115,7 +115,7 @@ class ImageClicker:
                 x, y = clickData['points'][0]['x'], clickData['points'][0]['y']
                 ra, dec = self.wcs.all_pix2world(x * self.downsample_factor, y * self.downsample_factor, 0)
                 self.coords = np.array([ra, dec])
-                self.err = [3.5*np.array(self.wcs.cdelt)]
+                self.err = 3.5*np.diag(self.wcs.wcs)
                 return f"Clicked at RA: {ra:.5f} +/- {self.err[0]:.7f}, Dec: {dec:.5f} +/- {self.err[1]:.7f}"
 
             return "Click on the image to mark a point"
