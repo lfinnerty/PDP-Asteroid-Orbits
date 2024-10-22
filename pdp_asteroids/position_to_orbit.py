@@ -146,7 +146,7 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  fwhm, fluxlevel,noisele
     out_dir = output_dir/'injected_images'
     out_dir.mkdir(exist_ok=True, parents=True)
 
-    fname1 = out_dir/(obsdate++'_'+output_str+'_frame1.fits')
+    fname1 = out_dir/(obsdate+'_'+output_str+'_frame1.fits')
     fname2 = out_dir/(obsdate+'_'+output_str+'_frame2.fits')
     fits.writeto(fname1, data=im1, header=header, overwrite=True)
     fits.writeto(fname2, data=im2, header=header, overwrite=True)
