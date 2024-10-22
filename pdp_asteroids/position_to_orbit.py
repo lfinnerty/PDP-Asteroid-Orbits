@@ -52,12 +52,21 @@ def parallax_to_dist(p1, e1, p2, e2, dt):
     ra1, d1 = p1
     ra2, d2 = p2
     parallax = np.sqrt((ra1-ra2)**2 + (d1-d2)**2) ### Degrees
-    dist = baseline/np.sin(parallax)
+    dist = baseline/np.sin(parallax*np.pi/180.)
 
     ### Calculate distance error
     ### Note that the WCS has intrinsic error values we can use
-    # dist_err = 
+    if e1 is None:
+        e1 = [3.5e-4,3.5e-4]
+    if e2 is None:
+        e2 = [3.5e-4,3.5e-4]
+    dra = np.sqrt((e1[0]**2+e2[0]**2))
+    ddec = np.sqrt((e1[1]**2+e2[1]**2))
 
+    parallax_err =  np.sqrt((ra1-ra2)**2/parallax**2 * dra**2 + (d1-d2)**2/parallax**2 * ddec**2)
+    sinp_err = np.sqrt(np.cos(parallax*np.pi/180.)*parallax_err*np.pi/180.)
+    dist_err = dist* sinp_err/np.sin(parallax*np.pi/180.)
+    
     return dist, dist_err
 
 def dist_to_parallax(time, r, theta, dt):
