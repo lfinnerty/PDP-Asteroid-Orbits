@@ -232,7 +232,7 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='ultranest'):
         if not os.path.isdir(prefix):
             os.mkdir(prefix)
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_transform,log_dir=prefix,resume=False)
+        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_transform,log_dir=prefix,resume='overwrite')
         result = sampler.run()
         return result['samples']
     else:
