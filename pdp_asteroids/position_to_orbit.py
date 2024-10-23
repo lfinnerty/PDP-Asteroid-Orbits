@@ -220,7 +220,9 @@ class logl():
 
 
 def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
-    prefix = 'fit_results/'
+    prefix = '/content/fit_results/'
+    if not os.path.isdir(prefix):
+        os.mkdir(prefix)
     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
                     outputfiles_basename=prefix, verbose=False, resume=False)
