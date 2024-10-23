@@ -232,7 +232,7 @@ def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
     dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
                                              nlive=400)
-    sampler.run_nested(dlogz=0.5)
+    dsampler.run_nested(dlogz=0.5)
     res = dsampler.results
     return res.samples_equal()
 
