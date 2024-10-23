@@ -217,9 +217,9 @@ class logl():
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,dynesty=False):
+def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='ultranest'):
     prefix = '/content/fit_results/'
-    if dynesty:
+    if samler=='dynesty':
         import dynesty
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
         dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
@@ -227,6 +227,14 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,dynesty=False):
         dsampler.run_nested(dlogz=0.5)
         res = dsampler.results
         return res.samples_equal()
+    elif sampler=='ultranest':
+        import ultranest
+         if not os.path.isdir(prefix):
+            os.mkdir(prefix)
+        loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_transform,log_dir,log_dir=prefix,resume=False)
+        result = sampler.run()
+        return result['samples']
     else:
         from pymultinest.solve import solve
         if not os.path.isdir(prefix):
