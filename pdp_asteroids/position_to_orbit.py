@@ -280,7 +280,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     ### Plot Earth
 
     ### Plot asteroid
-    if truth is not None:
+    if truths is not None:
         ptimes = np.linspace(0, 2*period,300)
         true_r, true_theta = make_orbit(ptimes, *truths)
         ax.plot(true_theta, true_r, color='k')
