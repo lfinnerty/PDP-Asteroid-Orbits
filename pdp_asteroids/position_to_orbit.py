@@ -226,7 +226,7 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,dynesty=False):
                                                  nlive=400)
         dsampler.run_nested(dlogz=0.5)
         res = dsampler.results
-    return res.samples_equal()
+        return res.samples_equal()
     else:
         from pymultinest.solve import solve
         if not os.path.isdir(prefix):
