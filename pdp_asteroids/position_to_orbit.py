@@ -281,7 +281,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
 
     ### Plot asteroid
     if truths is not None:
-        a = truths[0]
+        a = truths[1]
         period = 365.25*np.sqrt(a**3)
         ptimes = np.linspace(0, 2*period,300)
         true_r, true_theta = make_orbit(ptimes, *truths)
