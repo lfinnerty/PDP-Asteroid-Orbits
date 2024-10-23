@@ -219,7 +219,7 @@ class logl():
 
 def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='ultranest'):
     prefix = '/content/fit_results/'
-    if samler=='dynesty':
+    if sampler=='dynesty':
         import dynesty
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
         dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
