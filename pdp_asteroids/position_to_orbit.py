@@ -120,6 +120,8 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fw
     header.append(('jd', jd, 'Julian date'),end=True)
     header.append(('theta', theta, 'angle'),end=True)
     header.append(('elong', sin_sun, 'sin solar elongation'),end=True)
+    header['CD2_1'] = 0.
+    header['CD1_2'] = 0.
     # plt.imshow(data,vmin=np.nanpercentile(data,5),vmax=np.nanpercentile(data,95))
     # plt.show()
 
