@@ -223,7 +223,7 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='ultranest'):
         import dynesty
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
         dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
-                                                 nlive=400)
+                                                 nlive=100,bootstrap=0)
         dsampler.run_nested(dlogz=0.5)
         res = dsampler.results
         return res.samples_equal()
@@ -233,14 +233,14 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='ultranest'):
             os.mkdir(prefix)
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
         sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_transform,log_dir=prefix,resume='overwrite')
-        result = sampler.run()
+        result = sampler.run(min_num_live_points=100,dlogz=0.5,min_ess=400,update_interval_volume_fraction=0.4,max_num_improvement_loops=1)
         return result['samples']
     else:
         from pymultinest.solve import solve
         if not os.path.isdir(prefix):
             os.mkdir(prefix)
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
+        result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=100, evidence_tolerance=0.5,
                         outputfiles_basename=prefix, verbose=False, resume=False)
         samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
         return samples
