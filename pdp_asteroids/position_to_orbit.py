@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from astropy.time import Time
 import json
-from pymultinest.solve import solve
-# import dynesty
 import corner
 from glob import glob
 from astropy.io import fits
@@ -219,15 +217,25 @@ class logl():
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err):
+def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,dynesty=False):
     prefix = '/content/fit_results/'
-    if not os.path.isdir(prefix):
-        os.mkdir(prefix)
-    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
-                    outputfiles_basename=prefix, verbose=False, resume=False)
-    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-    return samples
+    if dynesty:
+        import dynesty
+        loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+        dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
+                                                 nlive=400)
+        dsampler.run_nested(dlogz=0.5)
+        res = dsampler.results
+    return res.samples_equal()
+    else:
+        from pymultinest.solve import solve
+        if not os.path.isdir(prefix):
+            os.mkdir(prefix)
+        loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+        result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
+                        outputfiles_basename=prefix, verbose=False, resume=False)
+        samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
+        return samples
 
 
 # def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
