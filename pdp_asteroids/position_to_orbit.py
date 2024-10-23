@@ -84,17 +84,14 @@ def dist_to_parallax(time, r, theta, dt):
 
     return parallax*206265, sin_sun ### In arcsec
 
-def dist_to_r(time, theta, dist, dist_err):
+def dist_to_r(time, theta, elong, dist, dist_err):
     ### FIXME do this vector addition based, it's easier 
     theta_earth = 2*np.pi/365.25 *(time-2460392.400856)
     r_earth = 1
-    xe, ye = rthet_to_xy(r_earth, theta_earth)
 
-    dx, dy = rthet_to_xy(rp,ra)
+    r = dist*elong/np.sin(theta-theta_earth)
+    r_err = dist_err*elong/np.sin(theta-theta_earth)
 
-    xtot = xe+dx
-    ytot = ye+dy
-    r, theta = xy_to_rthet(xtot, ytot)
 
     return r, r_err
 
