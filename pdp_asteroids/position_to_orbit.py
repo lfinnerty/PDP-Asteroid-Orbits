@@ -66,7 +66,7 @@ def parallax_to_dist(p1, e1, p2, e2, dt):
     parallax_err =  np.sqrt((ra1-ra2)**2/parallax**2 * dra**2 + (d1-d2)**2/parallax**2 * ddec**2)
     sinp_err = np.sqrt(np.cos(parallax*np.pi/180.)*parallax_err*np.pi/180.)
     dist_err = dist* sinp_err/np.sin(parallax*np.pi/180.)
-    
+
     return dist, dist_err
 
 def dist_to_parallax(time, r, theta, dt):
@@ -80,9 +80,11 @@ def dist_to_parallax(time, r, theta, dt):
     baseline = np.sin(dtheta/2) ### In AU
     parallax = np.arcsin(baseline/distance) ### In rad
 
-    return parallax*206265 ### In arcsec
+    sin_sun = r/distance * np.sin(theta-theta_earth)
 
-def ra_dist_to_r_theta(time, ra, rp):
+    return parallax*206265, sin_sun ### In arcsec
+
+def dist_to_r(time, theta, dist, dist_err):
     ### FIXME do this vector addition based, it's easier 
     theta_earth = 2*np.pi/365.25 *(time-2460392.400856)
     r_earth = 1
@@ -94,7 +96,7 @@ def ra_dist_to_r_theta(time, ra, rp):
     ytot = ye+dy
     r, theta = xy_to_rthet(xtot, ytot)
 
-    return r, rerr, theta, theta_err
+    return r, r_err
 
 def Gauss2D(x, y, amp, x0,y0,sigx,sigy,rot=0):
     a = np.cos(rot)**2/(2*sigx**2)+np.sin(rot)**2/(2*sigy**2)
@@ -104,7 +106,7 @@ def Gauss2D(x, y, amp, x0,y0,sigx,sigy,rot=0):
     return amp*np.exp(-a*(x-x0)**2 - b*(x-x0)*(y-y0) - c*(y-y0)**2)
 
 
-def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta,  fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
+def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun  fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
     ### Decide where to add inital PSF
     data = hdulst[0].data
     data[np.isnan(data)] = 3.
@@ -118,6 +120,7 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta,  fwhm, fluxl
     header.append(('obsdt',obsdelta,'Time in hours'),end=True)
     header.append(('jd', jd, 'Julian date'),end=True)
     header.append(('theta', theta, 'angle'),end=True)
+    header.append(('elong', sin_sun, 'sin solar elongation'),end=True)
     # plt.imshow(data,vmin=np.nanpercentile(data,5),vmax=np.nanpercentile(data,95))
     # plt.show()
 
@@ -233,7 +236,7 @@ def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
     return res.samples_equal()
 
 def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
-    parallax = dist_to_parallax(jd, r, theta, delta)
+    parallax, sin_sun = dist_to_parallax(jd, r, theta, delta)
     dtheta = delta*2*np.pi/365.25
     baseline = np.sin(dtheta/2)
 
@@ -241,7 +244,7 @@ def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noisele
     nimages = len(image_list)
     idx = np.random.randint(0,nimages)
     hdulst = fits.open(image_list[idx])
-    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta, jd, theta, fwhm, fluxlevel,noiselevel,output_str, output_dir=output_dir)
+    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta, jd, theta, sin_sun, fwhm, fluxlevel,noiselevel,output_str, output_dir=output_dir)
 
     return im1, im2, f1, f2
 
