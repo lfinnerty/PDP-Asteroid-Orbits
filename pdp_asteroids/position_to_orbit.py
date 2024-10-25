@@ -176,7 +176,7 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fw
     ### Return two image arrays
     return im1, im2, fname1, fname2
 
-def prior_transform(u):
+def prior_transform(u, phase9, a, e, omega):
     x = np.array(u)
     x[0] = u[0]*(phase0[1]-phase0[0])+phase0[0]
 
