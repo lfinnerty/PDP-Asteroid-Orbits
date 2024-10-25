@@ -314,9 +314,9 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     ### Turn off axes ticks, set axis limits based on semi-major axis
     # ax.grid(False)
     ax.set_xticklabels([])
-    ax.set_yticklabels([1,3,5])
+    ax.set_yticklabels([])
     a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.5,0.5,0.95])
-    rmax = a_med+2*(a_high-a_med)
+    rmax = 2*a_med+2*(a_high-a_med)
     if np.any(rs_fit < rmax):
         rmax = 2*np.max(rs_fit)
     ax.set_rmax(rmax)
@@ -326,7 +326,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     period = np.round(np.sqrt(a_med**3),2)
     p_low = np.round(np.sqrt(a_low**3),2)
     p_high = np.round(np.sqrt(a_high**3),2)
-    print(r'Measured orbital period = '+str(period)+'+'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
+    print(r'Measured orbital period = '+str(period)+' +'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
 
     return fig
 
