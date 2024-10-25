@@ -297,8 +297,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
         ptimes = np.linspace(0, 2*period,300)
         true_r, true_theta = make_orbit(ptimes, *truths)
         ax.plot(true_theta, true_r, color='k')
-    ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
-    ax.scatter(0,0,s=20,color='c',marker='*', label='Sun')
+    
     ptimes = np.linspace(0, 2*period,300)
     for i in range(200):
         rs, thetas = make_orbit(ptimes, *samples[i])
@@ -308,7 +307,9 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
             ax.plot(thetas,rs,color='r',alpha=0.05,label='Possible asteroid orbits')
     ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
-    ax.scatter()
+    
+    ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
+    ax.scatter(0,0,s=20,color='c',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
     ax.grid(False)
