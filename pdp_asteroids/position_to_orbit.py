@@ -178,16 +178,16 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fw
 
 def prior_transform(u):
     x = np.array(u)
-    x[0] = u[0]
+    x[0] = u[0]*(phase0[1]-phase0[0])+phase0[0]
 
     ### a
-    x[1] = u[1]*10
+    x[1] = u[1]*(a[1]-a[0])+a[0]
 
     ### e
-    x[2] = u[2]
+    x[2] = u[2]*(e[1]-e[0])+e[0]
 
     ### omega
-    x[3] = 2*np.pi*u[3]
+    x[3] = 2*np.pi*u[3]*(omega[1]-omega[0])+omega[0]
 
     ### Tperi
     #period = np.sqrt(x[1]**3)*365.25
@@ -195,6 +195,15 @@ def prior_transform(u):
     
 
     return x
+
+class prior():
+    def __init__(self, phase0,a,e,omega):
+        self.phase0 = phase0
+        self.a = a
+        self.e = e
+        self.omega = omega
+    def __call(self, x):
+        return prior_transform(x, self.phase0,self.a, self.e, self.omega)
 
 def loglike(x, times, rs, rerrs, thetas, thetaerrs):
     ### Obs, obs errs are sun-centered distances at specified times
@@ -217,12 +226,13 @@ class logl():
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive=100,dlogz=0.5,bootstrap=0):
+def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive=100,dlogz=0.5,bootstrap=0,phase0=[0,1],a=[0.1,10],e=[0,0.99],omega=[0,1]):
     prefix = '/content/fit_results/'
     if sampler=='dynesty':
         import dynesty
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
+        prior_func = prior(phase0,a,e,omega)
+        dsampler = dynesty.NestedSampler(loglike_func, prior_func, 4,
                                                  nlive=nlive,bootstrap=bootstrap)
         dsampler.run_nested(dlogz=dlogz)
         res = dsampler.results
@@ -232,7 +242,8 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive
         if not os.path.isdir(prefix):
             os.mkdir(prefix)
         loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_transform,log_dir=prefix,resume='overwrite')
+        prior_func = prior(phase0,a,e,omega)
+        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_func,log_dir=prefix,resume='overwrite')
         result = sampler.run(min_num_live_points=nlive,dlogz=dlogz,min_ess=nlive,update_interval_volume_fraction=0.4,max_num_improvement_loops=1)
         return result['samples']
     # else:
@@ -286,13 +297,31 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
         ptimes = np.linspace(0, 2*period,300)
         true_r, true_theta = make_orbit(ptimes, *truths)
         ax.plot(true_theta, true_r, color='k')
-    ax.scatter(thetas_fit, rs_fit)
+    ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
+    ax.scatter(0,0,s=20,color='c',marker='star', label='Sun')
     ptimes = np.linspace(0, 2*period,300)
     for i in range(200):
         rs, thetas = make_orbit(ptimes, *samples[i])
-        ax.plot(thetas,rs,color='r',alpha=0.05)
-    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
-    
+        if i!=0:
+            ax.plot(thetas,rs,color='r',alpha=0.05)
+        else:
+            ax.plot(thetas,rs,color='r',alpha=0.05,label='Possible asteroid orbits')
+    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
+    ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
+    ax.scatter()
+
+    ### Turn off axes ticks, set axis limits based on semi-major axis
+    ax.grid(False)
+    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.34,0.5,0.68])
+    ax.set_rmax(a_med+2*(a_high-a_med))
+    ax.legend()
+
+    ### print orbital period
+    period = np.round(np.sqrt(a_med**3),2)
+    p_low = np.round(np.sqrt(a_low**3),3)
+    p_high = np.round(np.sqrt(a_high**3),3)
+    print(r'Measured orbital period = '+str(period)+'+'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
+
     return fig
 
 
