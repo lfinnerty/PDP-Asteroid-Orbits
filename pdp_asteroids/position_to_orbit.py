@@ -298,7 +298,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
         true_r, true_theta = make_orbit(ptimes, *truths)
         ax.plot(true_theta, true_r, color='k')
     ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
-    ax.scatter(0,0,s=20,color='c',marker='star', label='Sun')
+    ax.scatter(0,0,s=20,color='c',marker='*', label='Sun')
     ptimes = np.linspace(0, 2*period,300)
     for i in range(200):
         rs, thetas = make_orbit(ptimes, *samples[i])
