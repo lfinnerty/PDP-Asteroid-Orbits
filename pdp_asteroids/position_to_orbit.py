@@ -309,18 +309,23 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
-    ax.scatter(0,0,s=20,color='c',marker='*', label='Sun')
+    ax.scatter(0,0,s=60,color='y',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
-    ax.grid(False)
-    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.34,0.5,0.68])
-    ax.set_rmax(a_med+2*(a_high-a_med))
+    # ax.grid(False)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([1,3,5])
+    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.5,0.5,0.95])
+    rmax = a_med+2*(a_high-a_med)
+    if np.any(rs_fit < rmax):
+        rmax = 2*np.max(rs_fit)
+    ax.set_rmax(rmax)
     ax.legend()
 
     ### print orbital period
     period = np.round(np.sqrt(a_med**3),2)
-    p_low = np.round(np.sqrt(a_low**3),3)
-    p_high = np.round(np.sqrt(a_high**3),3)
+    p_low = np.round(np.sqrt(a_low**3),2)
+    p_high = np.round(np.sqrt(a_high**3),2)
     print(r'Measured orbital period = '+str(period)+'+'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
 
     return fig
