@@ -202,7 +202,7 @@ class prior():
         self.a = a
         self.e = e
         self.omega = omega
-    def __call(self, x):
+    def __call__(self, x):
         return prior_transform(x, self.phase0,self.a, self.e, self.omega)
 
 def loglike(x, times, rs, rerrs, thetas, thetaerrs):
