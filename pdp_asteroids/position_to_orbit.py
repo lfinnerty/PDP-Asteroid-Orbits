@@ -287,7 +287,7 @@ def make_jds(dates):
 
 
 def plot_fit(rs_fit, thetas_fit, samples, truths=None):
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
     ### Plot Earth
 
     ### Plot asteroid
@@ -309,7 +309,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None):
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
-    ax.scatter(0,0,s=60,color='y',marker='*', label='Sun')
+    ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
     # ax.grid(False)
