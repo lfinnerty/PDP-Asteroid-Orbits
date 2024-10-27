@@ -28,7 +28,9 @@ dependencies = [
     "dash",
     "multiprocess",
     "selenium",
-    "percy"
+    "percy",
+    "dynesty",
+    "ultranest",
 ]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
