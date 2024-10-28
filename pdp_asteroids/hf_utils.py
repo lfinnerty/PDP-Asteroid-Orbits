@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 from typing import Optional
 from huggingface_hub import HfApi, snapshot_download, upload_folder
+from .token_handler import TokenHandler
 
-# Store API key and repo info - in practice these would be in a secure config
-HF_ACCESS_TOKEN = "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"
+# Default repositories and paths
 DEFAULT_REPO_ID = "hartnellpdp/observations_2024"
 DEFAULT_WRITE_FOLDER = Path("/content/new_observations/")
 
@@ -19,14 +19,35 @@ class HuggingFaceManager:
         api (HfApi): HuggingFace API instance
     """
     
-    def __init__(self, access_token: str = HF_ACCESS_TOKEN):
+    def __init__(self, access_token: Optional[str] = None):
         """Initialize the HuggingFace manager.
         
         Args:
-            access_token (str, optional): HuggingFace access token. Defaults to stored token.
+            access_token: Optional HuggingFace access token. If not provided,
+                         will attempt to load from secure storage.
         """
+        self.token_handler = TokenHandler()
+        
+        if access_token is None:
+            access_token = self.token_handler.get_token('huggingface')
+            if access_token is None:
+                raise ValueError(
+                    "No access token provided and none found in secure storage. "
+                    "Use store_token() to save a token first."
+                )
+        
         self.access_token = access_token
         self.api = HfApi(token=access_token)
+    
+    @classmethod
+    def store_token(cls, token: str) -> None:
+        """Securely store a HuggingFace API token.
+        
+        Args:
+            token: The API token to store
+        """
+        handler = TokenHandler()
+        handler.store_token('huggingface', token)
 
     def clone_repo(
         self,
@@ -36,11 +57,11 @@ class HuggingFaceManager:
         """Clone a HuggingFace repository using an access token.
         
         Args:
-            repo_id (str): Repository ID (e.g., 'username/repo-name')
-            local_dir (str, optional): Local directory to clone into. Defaults to /content/{repo-name}
+            repo_id: Repository ID (e.g., 'username/repo-name')
+            local_dir: Local directory to clone into. Defaults to /content/{repo-name}
             
         Returns:
-            Path: Path to the cloned repository directory
+            Path to the cloned repository directory
             
         Raises:
             ValueError: If repo_id is invalid or connection fails
@@ -59,7 +80,8 @@ class HuggingFaceManager:
             snapshot_download(
                 repo_id=repo_id,
                 local_dir=str(local_path),
-                repo_type="dataset"
+                repo_type="dataset",
+                token=self.access_token
             )
 
             print(f"Successfully cloned {repo_id} to {local_path}")
@@ -77,9 +99,9 @@ class HuggingFaceManager:
         """Add files and push changes to a HuggingFace repository.
         
         Args:
-            folder (Path): Path to folder containing files to push
-            repo_id (str): Name of dataset repository
-            commit_message (str): Git commit message
+            folder: Path to folder containing files to push
+            repo_id: Name of dataset repository
+            commit_message: Git commit message
             
         Raises:
             ValueError: If folder doesn't exist or push fails
@@ -105,11 +127,15 @@ class HuggingFaceManager:
         """Recursively remove a directory and its contents.
         
         Args:
-            path (Path): Directory path to clean
+            path: Directory path to clean
         """
         import shutil
         shutil.rmtree(path)
 
 
-# Create default instance with stored credentials
-hf_manager = HuggingFaceManager()
+# Create default instance only if token exists
+token_handler = TokenHandler()
+if token := token_handler.get_token('huggingface'):
+    hf_manager = HuggingFaceManager(token)
+else:
+    hf_manager = None
