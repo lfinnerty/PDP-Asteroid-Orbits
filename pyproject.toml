@@ -33,6 +33,7 @@ dependencies = [
     "ultranest",
     "dash",
     "corner",
+    "huggingface_hub",
 ]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
