@@ -5,9 +5,10 @@ import pickle
 import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
+import astropy.units as u
 
 from .image_switcher import FitsImageSwitcher
-from .image_clicker import DualImageClicker
+from .image_clicker import DualImageClickSelector
 from .position_to_orbit import (
     parallax_to_dist, 
     dist_to_r,
@@ -27,26 +28,14 @@ class ObservationData:
 
 
 class OrbitInvestigation:
-    """Context manager for student orbit investigation workflow.
-    
-    This class manages the state and workflow for investigating asteroid orbits,
-    including loading images, capturing clicks, calculating distances, and fitting
-    orbits.
-    
-    Attributes:
-        base_path (Path): Base path to observation data
-        group (str): Student group identifier
-        data (Dict[str, ObservationData]): Dictionary of observation data keyed by date
-        current_date (Optional[str]): Currently selected observation date
-        current_header (Optional[dict]): FITS header for current observation
-    """
+    """Context manager for student orbit investigation workflow."""
     
     def __init__(self, base_path: str = "/content/observations_2024/", group: str = "test"):
         """Initialize the investigation manager.
         
         Args:
-            base_path (str): Path to observation data directory
-            group (str): Student group identifier
+            base_path: Path to observation data directory
+            group: Student group identifier
         """
         self.base_path = Path(base_path)
         self.group = group
@@ -56,17 +45,15 @@ class OrbitInvestigation:
         # Current state
         self.current_date: Optional[str] = None
         self.current_header: Optional[dict] = None
-        self._current_clicks: Optional[Tuple] = None
+        self.current_selector: Optional[DualImageClickSelector] = None
         
         # Load existing data if available
         self._load_saved_data()
     
     def __enter__(self):
-        """Context manager entry."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - save data automatically."""
         self._save_data()
     
     def list_available_dates(self) -> List[str]:
@@ -84,19 +71,12 @@ class OrbitInvestigation:
         return dates_list
     
     def load_observation(self, date: str) -> None:
-        """Load a specific observation date for analysis.
-        
-        Args:
-            date (str): Observation date to load (YYYY-MM-DD format)
-        """
+        """Load a specific observation date for analysis."""
         self.current_date = date
-        self._current_clicks = None
+        self.current_selector = None
         
-        # Load FITS header info
         fname1 = self.group_path / f"{date}_{self.group}_frame1.fits"
         self.current_header = fits.getheader(fname1, 0)
-    
-        print([k for k in self.current_header.keys()])
         
         print(f"\nLoaded observation from {date}")
         print(f"Julian Date: {self.current_header['JD']:.6f}")
@@ -105,11 +85,7 @@ class OrbitInvestigation:
             print("\nNote: This date already has measurements.")
     
     def examine_images(self, saturation: float = 0.1) -> None:
-        """Display image blinker for current observation.
-        
-        Args:
-            saturation (float): Image saturation factor (0-1)
-        """
+        """Display image blinker for current observation."""
         if not self.current_date:
             raise ValueError("No observation date loaded. Use load_observation() first.")
             
@@ -124,49 +100,43 @@ class OrbitInvestigation:
         print("Look for an object that changes position between frames.")
     
     def mark_asteroid(self, saturation1: float = 0.1, saturation2: float = 0.1) -> None:
-        """Display both images side by side for marking the asteroid.
-        
-        Args:
-            saturation1 (float): Saturation factor for first image
-            saturation2 (float): Saturation factor for second image
-        """
+        """Display both images side by side for marking the asteroid."""
         if not self.current_date:
             raise ValueError("No observation date loaded. Use load_observation() first.")
             
         fname1 = self.group_path / f"{self.current_date}_{self.group}_frame1.fits"
         fname2 = self.group_path / f"{self.current_date}_{self.group}_frame2.fits"
         
-        self.clicker = DualImageClicker(str(fname1), str(fname2),
-                                 saturation_factor1=saturation1,
-                                 saturation_factor2=saturation2)
-        self.clicker.run_plot_context()
-        self.clicker.display()
-        
+        self.current_selector = DualImageClickSelector(
+            str(fname1), 
+            str(fname2),
+            saturation_factor1=saturation1,
+            saturation_factor2=saturation2
+        )
+        self.current_selector.display()
         
         print("\nClick on the asteroid in each image.")
-    
-    def log_clicks(self) -> None:
-        print('clicked at coords ', self.clicker.get_coords())
-        self._current_clicks = (self.clicker.get_coords(), self.clicker.get_errors())
-    
-    def display_data(self) -> None:
-        for k, obs_data in self.data:
-            print(f"Date: {k} // Data: {obs_data}")
+        print("The cross markers show your selected positions.")
+        print("Click again to update a position if needed.")
     
     def process_measurements(self) -> None:
-        """Process the current image clicks and save results."""
-        if not all([self.current_date, self._current_clicks]):
-            raise ValueError("Missing required data. Mark the asteroid position first.")
+        """Process the current image measurements and save results."""
+        if not self.current_selector:
+            raise ValueError("No measurements to process. Mark asteroid positions first.")
         
-        (coords1, coords2), (err1, err2) = self._current_clicks
+        coords1, coords2 = self.current_selector.get_coords()
+        errs1, errs2 = self.current_selector.get_errors()
         
-        if any(x is None for x in [coords1, coords2, err1, err2]):
+        if any(x is None for x in [coords1, coords2, errs1, errs2]):
             raise ValueError("Incomplete measurements. Please mark both positions.")
-            
-        dist, dist_err = parallax_to_dist(
-            coords1, err1, coords2, err2,
-            self.current_header['obsdt']
-        )
+        
+        # Convert coordinates to format expected by parallax_to_dist
+        p1 = (coords1.ra.deg, coords1.dec.deg)
+        p2 = (coords2.ra.deg, coords2.dec.deg)
+        e1 = errs1.to(u.deg).value
+        e2 = errs2.to(u.deg).value
+        
+        dist, dist_err = parallax_to_dist(p1, e1, p2, e2, self.current_header['obsdt'])
         
         r, r_err = dist_to_r(
             self.current_header['jd'],
@@ -189,14 +159,7 @@ class OrbitInvestigation:
         self._save_data()
     
     def fit_orbit(self, sampler: str = 'dynesty') -> plt.Figure:
-        """Fit an orbit to all processed observations.
-        
-        Args:
-            sampler (str): Name of sampler to use ('dynesty' or 'ultranest')
-            
-        Returns:
-            plt.Figure: Figure showing the orbit fit
-        """
+        """Fit an orbit to all processed observations."""
         if not self.data:
             raise ValueError("No processed observations available")
             
