@@ -1,194 +1,192 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import pickle
+import pytest
 import numpy as np
 from astropy.io import fits
-import matplotlib.pyplot as plt
+from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
 import astropy.units as u
+import matplotlib.pyplot as plt
+from unittest.mock import Mock, patch
 
-from .image_switcher import FitsImageSwitcher
-from .image_clicker import DualImageClickSelector
-from .position_to_orbit import (
-    parallax_to_dist, 
-    dist_to_r,
-    run_fit,
-    plot_fit
-)
+from pdp_asteroids.image_clicker import DualImageClickSelector
 
 
-@dataclass
-class ObservationData:
-    """Container for observation data and measurements."""
-    jd: float
-    r: float
-    r_err: float
-    theta: float
-    theta_err: float = 1e-4
+@pytest.fixture
+def mock_fits_files(tmp_path):
+    """Create mock FITS files with WCS information."""
+    # Create test files
+    file1 = tmp_path / "test1.fits"
+    file2 = tmp_path / "test2.fits"
+    
+    # Create sample data and WCS
+    data = np.random.rand(100, 100)
+    header = fits.Header()
+    header['CTYPE1'] = 'RA---TAN'
+    header['CTYPE2'] = 'DEC--TAN'
+    header['CRVAL1'] = 45.0  # RA center
+    header['CRVAL2'] = 30.0  # Dec center
+    header['CRPIX1'] = 50.0
+    header['CRPIX2'] = 50.0
+    header['CDELT1'] = -0.001
+    header['CDELT2'] = 0.001
+    
+    # Write files
+    fits.writeto(file1, data, header)
+    fits.writeto(file2, data, header)
+    
+    return str(file1), str(file2)
 
 
-class OrbitInvestigation:
-    """Context manager for student orbit investigation workflow."""
+@pytest.fixture
+def mock_axis_coords():
+    """Create a mock for axis coordinate formatting."""
+    coords = Mock()
+    coord0 = Mock()
+    coord1 = Mock()
+    coords.__getitem__ = lambda self, idx: coord0 if idx == 0 else coord1
+    return coords
+
+
+@pytest.fixture
+def selector(mock_fits_files, mock_axis_coords, monkeypatch):
+    """Create a DualImageClickSelector instance with mocked display."""
+    # Create a more complete mock figure
+    mock_fig = Mock()
+    mock_ax1 = Mock()
+    mock_ax2 = Mock()
     
-    def __init__(self, base_path: str = "/content/observations_2024/", group: str = "test"):
-        """Initialize the investigation manager.
-        
-        Args:
-            base_path: Path to observation data directory
-            group: Student group identifier
-        """
-        self.base_path = Path(base_path)
-        self.group = group
-        self.group_path = self.base_path / group
-        self.data: Dict[str, ObservationData] = {}
-        
-        # Current state
-        self.current_date: Optional[str] = None
-        self.current_header: Optional[dict] = None
-        self.current_selector: Optional[DualImageClickSelector] = None
-        
-        # Load existing data if available
-        self._load_saved_data()
+    # Create mock artist for plot returns
+    mock_artist = Mock()
+    mock_transform = Mock()
     
-    def __enter__(self):
-        return self
+    # Configure the axes with required attributes
+    for ax in [mock_ax1, mock_ax2]:
+        ax.coords = mock_axis_coords
+        ax.imshow = Mock(return_value=Mock())
+        ax.grid = Mock()
+        ax.set_title = Mock()
+        # Make plot return a list containing a mock artist
+        ax.plot = Mock(return_value=[mock_artist])
+        # Add get_transform method
+        ax.get_transform = Mock(return_value=mock_transform)
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._save_data()
+    mock_ax1.wcs = WCS(fits.open(mock_fits_files[0])[0].header)
+    mock_ax2.wcs = WCS(fits.open(mock_fits_files[1])[0].header)
     
-    def list_available_dates(self) -> List[str]:
-        """List all available observation dates for the group."""
-        dates = set()
-        print("Available observation dates:")
-        for file in self.group_path.glob("*.fits"):
-            if "_frame" in file.name:
-                date = file.name.split("_")[0]
-                dates.add(date)
-        dates_list = sorted(list(dates))
-        for date in dates_list:
-            status = "✓" if date in self.data else " "
-            print(f"[{status}] {date}")
-        return dates_list
+    # Set up the figure mock
+    mock_fig.add_subplot.side_effect = [mock_ax1, mock_ax2]
+    mock_fig.__getitem__ = lambda x: mock_fig
+    mock_fig.canvas = Mock()
+    mock_fig.canvas.draw_idle = Mock()
     
-    def load_observation(self, date: str) -> None:
-        """Load a specific observation date for analysis."""
-        self.current_date = date
-        self.current_selector = None
-        
-        fname1 = self.group_path / f"{date}_{self.group}_frame1.fits"
-        self.current_header = fits.getheader(fname1, 0)
-        
-        print(f"\nLoaded observation from {date}")
-        print(f"Julian Date: {self.current_header['JD']:.6f}")
-        print(f"Time between frames: {self.current_header['obsdt']*24:.1f} hours")
-        if date in self.data:
-            print("\nNote: This date already has measurements.")
+    monkeypatch.setattr(plt, 'figure', Mock(return_value=mock_fig))
     
-    def examine_images(self, saturation: float = 0.1) -> None:
-        """Display image blinker for current observation."""
-        if not self.current_date:
-            raise ValueError("No observation date loaded. Use load_observation() first.")
-            
-        fname1 = self.group_path / f"{self.current_date}_{self.group}_frame1.fits"
-        fname2 = self.group_path / f"{self.current_date}_{self.group}_frame2.fits"
-        
-        switcher = FitsImageSwitcher(str(fname1), str(fname2), 
-                                   saturation_factor=saturation)
-        switcher.display()
-        
-        print("\nUse the buttons above to switch between images.")
-        print("Look for an object that changes position between frames.")
+    selector = DualImageClickSelector(mock_fits_files[0], mock_fits_files[1])
+    selector.ax1 = mock_ax1
+    selector.ax2 = mock_ax2
     
-    def mark_asteroid(self, saturation1: float = 0.1, saturation2: float = 0.1) -> None:
-        """Display both images side by side for marking the asteroid."""
-        if not self.current_date:
-            raise ValueError("No observation date loaded. Use load_observation() first.")
-            
-        fname1 = self.group_path / f"{self.current_date}_{self.group}_frame1.fits"
-        fname2 = self.group_path / f"{self.current_date}_{self.group}_frame2.fits"
-        
-        self.current_selector = DualImageClickSelector(
-            str(fname1), 
-            str(fname2),
-            saturation_factor1=saturation1,
-            saturation_factor2=saturation2
-        )
-        self.current_selector.display()
-        
-        print("\nClick on the asteroid in each image.")
-        print("The cross markers show your selected positions.")
-        print("Click again to update a position if needed.")
+    return selector
+
+
+def test_initialization(selector):
+    """Test proper initialization of the selector."""
+    assert selector.coords1 is None
+    assert selector.coords2 is None
+    assert selector.err1 is None
+    assert selector.err2 is None
+    assert selector.wcs1 is not None
+    assert selector.wcs2 is not None
+
+
+def test_load_fits(selector, mock_fits_files):
+    """Test FITS file loading and processing."""
+    file1, _ = mock_fits_files
+    data, wcs = selector._load_fits(file1, 0.1)
     
-    def process_measurements(self) -> None:
-        """Process the current image measurements and save results."""
-        if not self.current_selector:
-            raise ValueError("No measurements to process. Mark asteroid positions first.")
-        
-        coords1, coords2 = self.current_selector.get_coords()
-        errs1, errs2 = self.current_selector.get_errors()
-        
-        if any(x is None for x in [coords1, coords2, errs1, errs2]):
-            raise ValueError("Incomplete measurements. Please mark both positions.")
-        
-        # Convert coordinates to format expected by parallax_to_dist
-        p1 = (coords1.ra.deg, coords1.dec.deg)
-        p2 = (coords2.ra.deg, coords2.dec.deg)
-        e1 = errs1.to(u.deg).value
-        e2 = errs2.to(u.deg).value
-        
-        dist, dist_err = parallax_to_dist(p1, e1, p2, e2, self.current_header['obsdt'])
-        
-        r, r_err = dist_to_r(
-            self.current_header['jd'],
-            self.current_header['theta'],
-            self.current_header['elong'],
-            dist, dist_err
-        )
-        
-        self.data[self.current_date] = ObservationData(
-            jd=self.current_header['jd'],
-            r=r,
-            r_err=r_err,
-            theta=self.current_header['theta']
-        )
-        
-        print(f"\nProcessed measurements for {self.current_date}:")
-        print(f"Distance from Earth: {dist:.3f} ± {dist_err:.3f} AU")
-        print(f"Distance from Sun: {r:.3f} ± {r_err:.3f} AU")
-        
-        self._save_data()
+    assert isinstance(data, np.ndarray)
+    assert isinstance(wcs, WCS)
+    assert data.shape == (100, 100)
+    assert not np.any(np.isnan(data))
+    # Allow for small numerical errors in saturation
+    assert data.max() <= 0.105  # 5% tolerance on saturation factor
+
+
+def test_format_coords(selector):
+    """Test coordinate formatting."""
+    coord = SkyCoord(45 * u.deg, 30 * u.deg)
+    formatted = selector._format_coords(coord)
+    assert 'RA: 45.00°' in formatted
+    assert 'Dec: 30.00°' in formatted
+
+
+def test_get_coords(selector):
+    """Test coordinate getter."""
+    coords = selector.get_coords()
+    assert coords == (None, None)
     
-    def fit_orbit(self, sampler: str = 'dynesty') -> plt.Figure:
-        """Fit an orbit to all processed observations."""
-        if not self.data:
-            raise ValueError("No processed observations available")
-            
-        # Prepare arrays for fitting
-        dates = sorted(self.data.keys())
-        jds = np.array([self.data[d].jd for d in dates])
-        rs = np.array([self.data[d].r for d in dates])
-        rerrs = np.array([self.data[d].r_err for d in dates])
-        thetas = np.array([self.data[d].theta for d in dates])
-        terrs = np.array([self.data[d].theta_err for d in dates])
-        
-        print(f"Fitting orbit using {len(dates)} observations:")
-        for date in dates:
-            print(f"  • {date}")
-        
-        samples = run_fit(jds, rs, rerrs, thetas, terrs, sampler=sampler)
-        fig = plot_fit(rs, thetas, samples)
-        
-        return fig
+    # Simulate a click by setting coordinates
+    selector.coords1 = SkyCoord(45 * u.deg, 30 * u.deg)
+    coords = selector.get_coords()
+    assert coords[0] is not None
+    assert coords[1] is None
+
+
+def test_get_errors(selector):
+    """Test error getter."""
+    errors = selector.get_errors()
+    assert errors == (None, None)
     
-    def _load_saved_data(self) -> None:
-        """Load previously saved data if available."""
-        save_file = self.group_path / "save.p"
-        if save_file.exists():
-            with open(save_file, 'rb') as f:
-                self.data = pickle.load(f)
+    # Simulate error setting
+    selector.err1 = np.array([0.001, 0.001]) * u.degree
+    errors = selector.get_errors()
+    assert errors[0] is not None
+    assert errors[1] is None
+
+
+def test_clear(selector):
+    """Test clearing of selections."""
+    # Set some mock data
+    selector.coords1 = SkyCoord(45 * u.deg, 30 * u.deg)
+    selector.coords2 = SkyCoord(46 * u.deg, 31 * u.deg)
+    selector.err1 = np.array([0.001, 0.001]) * u.degree
+    selector.err2 = np.array([0.001, 0.001]) * u.degree
     
-    def _save_data(self) -> None:
-        """Save current data to disk."""
-        save_file = self.group_path / "save.p"
-        with open(save_file, 'wb') as f:
-            pickle.dump(self.data, f)
+    # Add some mock artists
+    mock_artist1 = Mock()
+    mock_artist2 = Mock()
+    selector.current_artists1 = [mock_artist1]
+    selector.current_artists2 = [mock_artist2]
+    
+    selector.clear()
+    
+    # Verify artists were removed
+    mock_artist1.remove.assert_called_once()
+    mock_artist2.remove.assert_called_once()
+    
+    assert selector.coords1 is None
+    assert selector.coords2 is None
+    assert selector.err1 is None
+    assert selector.err2 is None
+    assert selector.coord_label1.value == 'Click left image to select position'
+    assert selector.coord_label2.value == 'Click right image to select position'
+    assert len(selector.current_artists1) == 0
+    assert len(selector.current_artists2) == 0
+
+
+@pytest.mark.parametrize('click_axes, expected_label', [
+    ('ax1', 'coords1'),
+    ('ax2', 'coords2')
+])
+def test_click_handling(selector, click_axes, expected_label):
+    """Test click event handling."""
+    # Create mock click event
+    event = Mock()
+    event.xdata = 50
+    event.ydata = 50
+    event.inaxes = getattr(selector, click_axes)
+    
+    # Trigger click handler
+    selector._on_click(event)
+    
+    # Check that coordinates were set
+    assert getattr(selector, expected_label) is not None
