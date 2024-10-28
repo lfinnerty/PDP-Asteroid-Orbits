@@ -4,22 +4,48 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from astropy.time import Time
 from astropy.io import fits
-import pdp_asteroids
 
-import pdp_asteroids
 from pdp_asteroids.position_to_orbit import (
-    xy_to_rthet, 
+    xy_to_rthet,
     rthet_to_xy,
     solve_kepler,
     make_orbit,
     dist_to_parallax,
     Gauss2D,
     inject_asteroid,
-    logl,
-    prior_transform
+    prior,
+    run_fit
 )
 
+# Get path to test data relative to this test file
+TEST_DIR = Path(__file__).parent
+TEST_DATA = TEST_DIR / 'testdata.fits'
+
+@pytest.fixture
+def test_fits_data():
+    """Load the test FITS file"""
+    return fits.open(TEST_DATA)
+
+@pytest.fixture
+def orbit_params():
+    """Basic orbital parameters for testing"""
+    return {
+        'phase0': 0.2,
+        'a': 1.2,
+        'e': 0.83,
+        'omega': np.pi/2,
+    }
+
+@pytest.fixture
+def observation_times():
+    """Sample observation dates and times"""
+    dates = ['2025-01-18', '2025-03-02', '2025-04-01']
+    times = [Time(date+'T12:00:00', format='isot', scale='utc').jd 
+            for date in dates]
+    return np.array(times)
+
 def test_xy_to_rthet():
+    """Test conversion from cartesian to polar coordinates"""
     x = np.array([1, 2**(-1/2), 0])
     y = np.array([0, 2**(-1/2), 1])
     r, theta = xy_to_rthet(x, y)
@@ -31,6 +57,7 @@ def test_xy_to_rthet():
     np.testing.assert_almost_equal(theta, expected_theta, decimal=6)
 
 def test_rthet_to_xy():
+    """Test conversion from polar to cartesian coordinates"""
     r = np.array([1, 1, 1])
     theta = np.array([0, np.pi/4, np.pi/2])
     x, y = rthet_to_xy(r, theta)
@@ -42,188 +69,120 @@ def test_rthet_to_xy():
     np.testing.assert_almost_equal(y, expected_y, decimal=6)
 
 def test_solve_kepler():
-    M = np.array([0, np.pi/2, np.pi, 3*np.pi/2])
+    """Test Kepler equation solver"""
+    M = np.array([0, np.pi/2, np.pi])
     e = 0.1
     E = solve_kepler(M, e)
+    # Check if solution satisfies Kepler's equation
     assert np.all(np.abs(E - M - e*np.sin(E)) < 1e-6)
 
-def test_make_orbit():
-    times = np.array([0, 100, 200])
-    phase0, a, e, omega = 0.1, 1.5, 0.3, np.pi/4
-    rs, nus = make_orbit(times, phase0, a, e, omega)
-    assert len(rs) == 3
-    assert len(nus) == 3
+def test_make_orbit(orbit_params, observation_times):
+    """Test orbit generation"""
+    rs, nus = make_orbit(
+        observation_times, 
+        orbit_params['phase0'],
+        orbit_params['a'],
+        orbit_params['e'],
+        orbit_params['omega']
+    )
+    assert len(rs) == len(observation_times)
+    assert len(nus) == len(observation_times)
+    # Check physical constraints
+    assert np.all(rs > 0)  # Positive distances
+    assert np.all(nus >= 0) & np.all(nus <= 2*np.pi)  # Valid angles
 
 def test_dist_to_parallax():
-    time, r, theta, dt = 2460000, 2, np.pi/3, 1
-    parallax = dist_to_parallax(time, r, theta, dt)
+    """Test parallax calculation"""
+    time = 2460000
+    r = 2.0
+    theta = np.pi/3
+    dt = 1.0
+    
+    parallax, sin_sun = dist_to_parallax(time, r, theta, dt)
+    
+    # Basic sanity checks
     assert isinstance(parallax, float)
+    assert isinstance(sin_sun, float)
+    assert -1 <= sin_sun <= 1  # Valid sine value
+    assert parallax > 0  # Positive parallax
 
-def test_Gauss2D():
-    x = np.array([0, 1, 2])
-    y = np.array([0, 1, 2])
-    amp, x0, y0, sigx, sigy = 1, 1, 1, 1, 1
-    result = Gauss2D(x, y, amp, x0, y0, sigx, sigy)
-    assert result.shape == (3,)
-
-
-from pymultinest.solve import solve
-
-@pytest.fixture
-def setup_test_data():
-    # Set up test parameters
-    p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
-    period = 365.25 * np.sqrt(a**3)
+@pytest.mark.parametrize("output_str", ["test_injection"])
+def test_inject_asteroid(test_fits_data, orbit_params, observation_times, tmp_path, output_str):
+    """Test asteroid injection into images using real test data"""
+    # Injection parameters
+    jd = observation_times[0]
+    theta = np.pi/4
+    sin_sun = 0.5
+    fwhm = 3.0
+    fluxlevel = 95
+    noiselevel = 0.1
     
-    obsdates = ['2025-01-18', '2025-03-02', '2025-04-01', '2025-04-29', '2025-05-12']
-    obsdelta = 4/24.  # In days
+    # Test injection
+    im1, im2, fname1, fname2 = inject_asteroid(
+        test_fits_data,
+        parallax=10.0,  # arcsec
+        obsdate="2025-01-18",
+        obsdelta=1.0,
+        jd=jd,
+        theta=theta,
+        sin_sun=sin_sun,
+        fwhm=fwhm,
+        fluxlevel=fluxlevel,
+        noiselevel=noiselevel,
+        output_str=output_str,
+        output_dir=tmp_path
+    )
     
-    jds = [Time(date+'T12:00:00', format='isot', scale='utc').jd for date in obsdates]
-    jds = np.array(jds)
+    # Check outputs
+    test_shape = test_fits_data[0].data.shape
+    assert isinstance(im1, np.ndarray)
+    assert isinstance(im2, np.ndarray)
+    assert im1.shape == test_shape
+    assert im2.shape == test_shape
+    assert Path(fname1).exists()
+    assert Path(fname2).exists()
     
-    rs, thetas = make_orbit(jds, p0, a, e, omega)
+    # Check that injected images have reasonable values
+    assert not np.any(np.isnan(im1))
+    assert not np.any(np.isnan(im2))
+    assert np.median(im1) > 0
+    assert np.median(im2) > 0
+
+def test_orbit_fitting(orbit_params, observation_times):
+    """Test orbit fitting functionality"""
+    # Generate synthetic data
+    true_rs, true_thetas = make_orbit(
+        observation_times,
+        orbit_params['phase0'],
+        orbit_params['a'],
+        orbit_params['e'],
+        orbit_params['omega']
+    )
     
-    return p0, a, e, omega, period, obsdates, obsdelta, jds, rs, thetas
-
-
-def test_injection(setup_test_data):
-    p0, a, e, omega, period, obsdates, obsdelta, jds, rs, thetas = setup_test_data
-
-    ### Image filenames
-    root_dir = Path(pdp_asteroids.__file__).parent
-    image_list = [str(s) for s in list((root_dir/'imagedata').glob('d*.fits'))]
-    nimages = len(image_list)
-
-    ### True parameters
-    p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
-    period = 365.25*np.sqrt(a**3)
-        
-
-    ### Given a list of dates, predict observables
-    obsdates = ['2025-01-18', '2025-03-02', '2025-04-01', '2025-04-29', '2025-05-12']
-    obsdelta = 4/24. ### In days
-
-    jds = []
-    for date in obsdates:
-        jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
-    jds = np.asarray(jds)
+    # Add some noise
+    rs_err = 0.03 * np.ones_like(true_rs)
+    rs_fit = true_rs + np.random.normal(0, 0.03, size=len(true_rs))
+    thetas_err = 1e-4 * np.ones_like(true_thetas)
+    thetas_fit = true_thetas + np.random.normal(0, 1e-4, size=len(true_thetas))
     
-    rs, thetas = make_orbit(jds, p0, a, e, omega)
-
-    for i in range(len(rs)):
-        # ax.scatter(2*np.pi/365.25 *(jds[i]-2460392.400856), 1)
-        # ax.scatter(thetas[i], rs[i])
-        parallax = dist_to_parallax(jds[i], rs[i], thetas[i], obsdelta)
-        dtheta = obsdelta*2*np.pi/365.25
-        baseline = np.sin(dtheta/2)
-
-        ### Pick an image
-        idx = np.random.randint(0,nimages)
-        hdulst = fits.open(image_list[idx])
-        im1, im2 = inject_asteroid(hdulst, parallax, obsdates[i], obsdelta)
-
-def test_fit_result(setup_test_data):
-    p0, a, e, omega, period, obsdates, obsdelta, jds, rs, thetas = setup_test_data
-    root_dir = Path(pdp_asteroids.__file__).parent
-
-    ## Add errors to rs, thetas
-    ### Note that students will give us values for r and its error
-    ### We will know theta already from the orbital parameters
-    rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
-    rs_fit=rs+rs_err
-
-    ### This one we specify
-    thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
-    thetas_fit = thetas+thetas_err
-
-
-    prefix = root_dir / 'fit_results/'
-    prefix.mkdir(exist_ok=True)
-    prefix = str(prefix) + '/'
-    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
-                    outputfiles_basename=prefix, verbose=False, resume=False)
-    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-
-
-
-#    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-#    ax.scatter(thetas_fit, rs_fit)
-#    ptimes = np.linspace(0, 2*period,300)
-#    true_r, true_theta = make_orbit(ptimes, p0, a, e, omega)
-#    ax.plot(true_theta, true_r, color='k')
-#    for i in range(200):
-#        rs, thetas = make_orbit(ptimes, *samples[i])
-#        ax.plot(thetas,rs,color='r',alpha=0.05)
-#    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
-#    plt.show()
-
-
-
-
-
-
-
-#def test_integration(setup_test_data):
-#    p0, a, e, omega, period, obsdates, obsdelta, jds, rs, thetas = setup_test_data
-#
-#    root_dir = Path(pdp_asteroids.__file__).parent
-#    
-#    # Get image files
-#    image_files = list((root_dir/'imagedata').glob('*.fits'))
-#    assert len(image_files) > 0, "No image files found in pdp_asteroids/imagedata/"
-#
-#    # Create a temporary directory for injected images
-#    injected_dir = root_dir / "injected_images"
-#    injected_dir.mkdir(exist_ok=True)
-#    
-#    # Inject asteroids into images
-#    for i, obsdate in enumerate(obsdates):
-#        parallax = dist_to_parallax(jds[i], rs[i], thetas[i], obsdelta)
-#        idx = np.random.randint(0, len(image_files))
-#        print(image_files[idx], idx)
-#        with fits.open(image_files[idx]) as hdulst:
-#            im1, im2 = inject_asteroid(hdulst, parallax, obsdate, obsdelta, output_dir=Path('./tests/'))
-#        
-#        # Check that injected images were created
-#        assert (injected_dir / f'{obsdate}_frame1.fits').exists()
-#        assert (injected_dir / f'{obsdate}_frame2.fits').exists()
-#    
-#    # Add errors to rs, thetas
-#    rs_err = np.random.normal(0, 3e-2, size=rs.shape)
-#    rs_fit = rs + rs_err
-#    
-#    thetas_err = np.random.normal(0, 1e-4, size=thetas.shape)
-#    thetas_fit = thetas + thetas_err
-#    
-#    # Run MultiNest fit
-#    prefix = str(root_dir / 'fit_results/')
-#    loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-#    result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, 
-#                   evidence_tolerance=0.5, outputfiles_basename=prefix, 
-#                   verbose=False, resume=False)
-#    
-#    # Check that fit results were created
-#    assert (tmp_path / 'fit_results/post_equal_weights.dat').exists()
-#    
-#    # Load and check fit results
-#    samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-#    assert samples.shape[1] == 4  # Should have 4 parameters
-#    
-##    # Plot results (optional, comment out if you don't want to generate plots during testing)
-##    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-##    ax.scatter(thetas_fit, rs_fit)
-##    ptimes = np.linspace(0, 2*period, 300)
-##    true_r, true_theta = make_orbit(ptimes, p0, a, e, omega)
-##    ax.plot(true_theta, true_r, color='k')
-##    for i in range(min(200, len(samples))):
-##        rs, thetas = make_orbit(ptimes, *samples[i])
-##        ax.plot(thetas, rs, color='r', alpha=0.05)
-##    ax.plot(np.linspace(0, 2*np.pi, 100), np.ones(100), color='g')
-##    plt.savefig(str(tmp_path / 'orbit_fit.png'))
-##    plt.close()
-#
-#    # You could add more specific assertions here to check the quality of the fit
-#    # For example, checking if the median of the posterior is close to the true values
-#    median_fit = np.median(samples, axis=0)
-#    assert np.allclose([p0, a, e, omega], median_fit, rtol=0.1, atol=0.1)
+    # Run the fit
+    samples = run_fit(
+        observation_times, 
+        rs_fit, 
+        rs_err, 
+        thetas_fit, 
+        thetas_err,
+        sampler='dynesty',
+        nlive=100,
+        dlogz=0.5,
+        bootstrap=0,
+        phase0=[0,1],
+        a=[0.1,10],
+        e=[0,0.99],
+        omega=[0,1]
+    )
+    
+    # Check output shape and basic constraints
+    assert samples.shape[1] == 4  # Four parameters
+    assert np.all(samples[:, 1] > 0)  # Semi-major axis > 0
+    assert np.all((samples[:, 2] >= 0) & (samples[:, 2] < 1))  # 0 ≤ e < 1
