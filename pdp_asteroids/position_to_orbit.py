@@ -310,7 +310,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=1):
         true_r, true_theta = make_orbit(ptimes, *truths)
         ax.plot(true_theta, true_r, color='k')
     else:
-        period = default_plot_period #years
+        period = default_plot_period*365.25 #years
     
     ptimes = np.linspace(0, 2*period,300)
     for i in range(200):
