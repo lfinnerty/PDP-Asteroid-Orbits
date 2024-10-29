@@ -15,7 +15,7 @@ from .position_to_orbit import (
     run_fit,
     plot_fit
 )
-
+from .hf_utils import hf_manager, HuggingFaceManager
 
 @dataclass
 class ObservationData:
@@ -64,7 +64,10 @@ class OrbitInvestigation:
         self.repo_id = repo_id
         
         # Initialize HuggingFace manager if token provided
-        self.hf_manager = HuggingFaceManager(hf_token) if hf_token else None
+        if hf_token is not None:
+            self.hf_manager = HuggingFaceManager(hf_token)
+        else:
+            self.hf_manager = hf_manager
         
         # Current state
         self.current_date: Optional[str] = None
