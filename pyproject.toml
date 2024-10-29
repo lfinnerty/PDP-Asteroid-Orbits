@@ -23,8 +23,6 @@ dependencies = [
     "astropy",
     "ipympl",
     "pyorb",
-    "pymultinest",
-    "corner",
     "plotly",
     "dash",
     "multiprocess",
@@ -33,7 +31,6 @@ dependencies = [
     "dynesty",
     "ultranest",
     "dash",
-    "corner",
     "huggingface_hub",
     "cryptography",
 ]

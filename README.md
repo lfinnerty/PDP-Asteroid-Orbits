@@ -10,7 +10,6 @@ If you use conda, this can be accomplished for a "pdp" environment by typing:
 ```sh
 conda create -n "pdp" python=3.9
 conda activate pdp
-conda install multinest
 ```
 
 Then, clone this repository and install it and its dependencies:
