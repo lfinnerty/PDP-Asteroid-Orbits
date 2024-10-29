@@ -655,8 +655,10 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=1):
     ax.set_yticklabels([])
     a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.5,0.5,0.95])
     rmax = 2*a_med+2*(a_high-a_med)
-    if np.any(rs_fit < rmax):
+    if np.any(rs_fit < rmax) or rmax < 2.:
         rmax = 2*np.max(rs_fit)
+        if rmax  < 2:
+            rmax = 2.
     ax.set_rmax(rmax)
     ax.legend()
 
