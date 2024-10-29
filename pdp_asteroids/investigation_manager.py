@@ -254,7 +254,7 @@ class OrbitInvestigation:
         
         print(f"Fitting orbit using {len(dates)} observations:")
         for date in dates:
-            print(f"  • {date}", rs, theta)
+            print(f"  • {date}")
         
         samples = run_fit(jds, rs, rerrs, thetas, terrs, nlive=nlive,dlogz=dlogz,bootstrap=0,phase0=phase0,a=a,e=e,omega=omega, sampler=sampler)
         fig = plot_fit(rs, thetas, samples)
