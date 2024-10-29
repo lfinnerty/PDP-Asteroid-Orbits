@@ -247,8 +247,8 @@ def parallax_to_dist(
         dist_err = dist * sinp_err/np.sin(parallax*np.pi/180.)
         """)
     else:
-        # Use simple 5% distance uncertainty
-        dist_err = 0.05 * dist
+        # Use simple 3% distance uncertainty
+        dist_err = 0.03 * dist
 
     return dist, dist_err
 
