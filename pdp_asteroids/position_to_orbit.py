@@ -622,7 +622,7 @@ def make_jds(dates):
     return jds
 
 
-def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=1):
+def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
     ### Plot Earth
 
