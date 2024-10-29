@@ -558,7 +558,7 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive
         prior_func = prior(phase0,a,e,omega)
         dsampler = dynesty.NestedSampler(loglike_func, prior_func, 4,
                                                  nlive=nlive,bootstrap=bootstrap)
-        dsampler.run_nested(dlogz=dlogz)
+        dsampler.run_nested(dlogz=dlogz,maxcall=200000)
         res = dsampler.results
         return res.samples_equal()
     else:
