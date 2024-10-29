@@ -92,11 +92,3 @@ def test_fits_image_switcher_zsmooth(mock_fits_files):
     
     assert switcher.fig.data[0].zsmooth == 'best'
     assert switcher.fig.data[1].zsmooth == 'best'
-
-def test_fits_image_switcher_y_axis_reversal(mock_fits_files):
-    file1, file2 = mock_fits_files
-    switcher = FitsImageSwitcher(file1, file2)
-    
-    assert switcher.fig.data[0].y[0] > switcher.fig.data[0].y[-1]
-    assert switcher.fig.data[1].y[0] > switcher.fig.data[1].y[-1]
-

@@ -34,7 +34,7 @@ class FitsImageSwitcher:
             showscale=False,
             name=title,
             zsmooth='best',
-            y=list(range(data.shape[0]))[::-1],
+            y=list(range(data.shape[0])),
         )
 
     def create_figure(self):
