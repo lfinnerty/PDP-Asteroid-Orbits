@@ -17,6 +17,7 @@ dependencies = [
     "pandas",
     "pytest",
     "pytest-mpl",
+    "pytest-mock",
     "tqdm",
     "jupyter",
     "astropy",
@@ -34,7 +35,7 @@ dependencies = [
     "dash",
     "corner",
     "huggingface_hub",
-    "cryptography"
+    "cryptography",
 ]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }

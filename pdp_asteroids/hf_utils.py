@@ -90,6 +90,74 @@ class HuggingFaceManager:
         except Exception as e:
             raise ValueError(f"Failed to clone repository: {str(e)}")
 
+    def pull_changes(
+        self,
+        repo_id: str = DEFAULT_REPO_ID,
+        local_dir: Optional[str] = None,
+        backup: bool = True
+    ) -> Path:
+        """Pull latest changes from a HuggingFace repository without re-cloning.
+        
+        This function updates an existing local repository by downloading only the
+        changed files. It optionally creates a backup of the existing files before
+        updating.
+        
+        Args:
+            repo_id: Repository ID (e.g., 'username/repo-name')
+            local_dir: Local directory containing the repository. 
+                      Defaults to /content/{repo-name}
+            backup: If True, creates a backup of existing files before updating
+            
+        Returns:
+            Path to the updated repository directory
+            
+        Raises:
+            ValueError: If the local directory doesn't exist or pull fails
+        """
+        try:
+            # If no local_dir specified, use default based on repo name
+            if local_dir is None:
+                local_dir = f"/content/{repo_id.split('/')[-1]}"
+            local_path = Path(local_dir)
+
+            # Verify the directory exists
+            if not local_path.exists():
+                raise ValueError(
+                    f"Local directory {local_path} not found. "
+                    "Use clone_repo() first."
+                )
+
+            # Create backup if requested
+            if backup:
+                import shutil
+                backup_path = local_path.parent / f"{local_path.name}_backup"
+                if backup_path.exists():
+                    self._clean_directory(backup_path)
+                shutil.copytree(local_path, backup_path)
+                print(f"Created backup at {backup_path}")
+
+            # Use snapshot_download with local_dir_use_symlinks=False to update files
+            snapshot_download(
+                repo_id=repo_id,
+                local_dir=str(local_path),
+                repo_type="dataset",
+                token=self.access_token,
+                local_dir_use_symlinks=False,
+                ignore_patterns=["*.backup"],
+            )
+
+            print(f"Successfully pulled latest changes to {local_path}")
+            return local_path
+
+        except Exception as e:
+            # If backup exists and pull failed, restore from backup
+            if backup and 'backup_path' in locals() and backup_path.exists():
+                self._clean_directory(local_path)
+                shutil.copytree(backup_path, local_path)
+                self._clean_directory(backup_path)
+                print("Restored from backup due to pull failure")
+            raise ValueError(f"Failed to pull changes: {str(e)}")
+
     def push_to_hf(
         self,
         folder: Path = DEFAULT_WRITE_FOLDER,

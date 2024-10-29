@@ -45,6 +45,68 @@ def investigation(mock_observation_dir):
     return OrbitInvestigation(base_path=mock_observation_dir)
 
 
+
+@pytest.fixture
+def mock_hf_manager(mocker):
+    """Mock HuggingFace manager for testing."""
+    mock_manager = mocker.Mock()
+    mock_manager.pull_changes.return_value = Path("/test/path")
+    return mock_manager
+
+
+
+def test_get_new_observations_no_token(investigation):
+    """Test attempt to get new observations without HF token."""
+    investigation.hf_manager = None
+    
+    with pytest.raises(ValueError, match="HuggingFace token not provided"):
+        investigation.get_new_observations()
+
+def test_get_new_observations_no_changes(investigation, mock_hf_manager, tmp_path):
+    """Test when no new observations are available."""
+    investigation.hf_manager = mock_hf_manager
+    investigation.base_path = tmp_path
+    
+    # Create test observation file
+    group_path = tmp_path / investigation.group
+    group_path.mkdir()
+    (group_path / "2024-01-01_test_frame1.fits").touch()
+    
+    # Mock pull_changes to not add any new files
+    mock_hf_manager.pull_changes.return_value = tmp_path
+    
+    new_dates = investigation.get_new_observations()
+    assert len(new_dates) == 0
+
+def test_get_new_observations_success(investigation, mock_hf_manager, tmp_path):
+   """Test successful retrieval of new observations."""
+   # Setup test environment
+   investigation.hf_manager = mock_hf_manager
+   investigation.base_path = tmp_path
+   
+   # Create initial observation file
+   group_path = tmp_path / "observations_2024" / investigation.group
+   group_path.mkdir(exist_ok=True)
+   (group_path / f"2024-01-01_{investigation.group}_frame1.fits").touch()
+   
+   def mock_pull(*args, **kwargs):
+       (group_path / f"2024-01-02_{investigation.group}_frame1.fits").touch()
+       return tmp_path
+       
+   mock_hf_manager.pull_changes.side_effect = mock_pull
+   
+   # Test getting new observations
+   new_dates = investigation.get_new_observations()
+   assert "2024-01-02" in new_dates
+
+def test_get_new_observations_pull_failure(investigation, mock_hf_manager):
+    """Test handling of pull operation failure."""
+    investigation.hf_manager = mock_hf_manager
+    mock_hf_manager.pull_changes.side_effect = Exception("Pull failed")
+    
+    new_dates = investigation.get_new_observations()
+    assert len(new_dates) == 0
+
 def test_initialization(investigation):
     """Test proper initialization."""
     assert investigation.current_date is None

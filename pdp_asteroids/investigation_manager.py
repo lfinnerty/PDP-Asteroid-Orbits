@@ -28,32 +28,110 @@ class ObservationData:
 
 
 class OrbitInvestigation:
-    """Context manager for student orbit investigation workflow."""
+    """Context manager for student orbit investigation workflow.
     
-    def __init__(self, base_path: str = "/content/observations_2024/", group: str = "test"):
+    This class manages the state and workflow for investigating asteroid orbits,
+    including loading images, capturing clicks, calculating distances, and fitting
+    orbits.
+    
+    Attributes:
+        base_path (Path): Base path to observation data
+        group (str): Student group identifier
+        data (Dict[str, ObservationData]): Dictionary of observation data keyed by date
+        current_date (Optional[str]): Currently selected observation date
+        current_header (Optional[dict]): FITS header for current observation
+    """
+    
+    def __init__(
+        self, 
+        base_path: str = "/content/observations_2024/", 
+        group: str = "test",
+        hf_token: Optional[str] = None,
+        repo_id: str = "hartnellpdp/observations_2024"
+    ):
         """Initialize the investigation manager.
         
         Args:
-            base_path: Path to observation data directory
-            group: Student group identifier
+            base_path (str): Path to observation data directory
+            group (str): Student group identifier
+            hf_token (Optional[str]): HuggingFace access token
+            repo_id (str): HuggingFace repository ID
         """
         self.base_path = Path(base_path)
         self.group = group
         self.group_path = self.base_path / group
         self.data: Dict[str, ObservationData] = {}
+        self.repo_id = repo_id
+        
+        # Initialize HuggingFace manager if token provided
+        self.hf_manager = HuggingFaceManager(hf_token) if hf_token else None
         
         # Current state
         self.current_date: Optional[str] = None
         self.current_header: Optional[dict] = None
-        self.current_selector: Optional[DualImageClickSelector] = None
+        self._current_clicks: Optional[Tuple] = None
+        self.current_selector: Optional[FitsImageSwitcher] = None
         
         # Load existing data if available
         self._load_saved_data()
     
+    def get_new_observations(self, backup: bool = True) -> List[str]:
+        """Pull latest observations from HuggingFace repository.
+        
+        This method updates the local observation files by pulling changes
+        from the remote repository. It returns a list of new observation
+        dates that weren't previously available.
+        
+        Args:
+            backup (bool): If True, creates a backup before pulling changes
+            
+        Returns:
+            List[str]: New observation dates that were added
+            
+        Raises:
+            ValueError: If HuggingFace manager not initialized or pull fails
+        """
+        if not self.hf_manager:
+            raise ValueError(
+                "HuggingFace token not provided. Initialize with hf_token "
+                "to enable remote updates."
+            )
+        
+        # Get current list of dates
+        existing_dates = set(self.list_available_dates())
+        
+        try:
+            # Pull latest changes
+            self.hf_manager.pull_changes(
+                repo_id=self.repo_id,
+                local_dir=str(self.base_path),
+                backup=backup
+            )
+            
+            # Get updated list of dates
+            new_dates = set(self.list_available_dates())
+            added_dates = sorted(list(new_dates - existing_dates))
+            
+            if added_dates:
+                print("\nNew observations available for dates:")
+                for date in added_dates:
+                    print(f"  • {date}")
+            else:
+                print("\nNo new observations available.")
+                
+            return added_dates
+            
+        except Exception as e:
+            print(f"Failed to update observations: {str(e)}")
+            print("Continuing with existing observation data.")
+            return []
+    
     def __enter__(self):
+        """Context manager entry."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - save data automatically."""
         self._save_data()
     
     def list_available_dates(self) -> List[str]:
