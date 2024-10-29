@@ -158,7 +158,7 @@ class OrbitInvestigation:
         
         self._save_data()
     
-    def fit_orbit(self, sampler: str = 'dynesty') -> plt.Figure:
+    def fit_orbit(self, nlive=100,dlogz=0.5,bootstrap=0,phase0=[0,1],a=[0.1,10],e=[0,0.99],omega=[0,1], sampler='dynesty') -> plt.Figure:
         """Fit an orbit to all processed observations."""
         if not self.data:
             raise ValueError("No processed observations available")
@@ -175,7 +175,7 @@ class OrbitInvestigation:
         for date in dates:
             print(f"  • {date}")
         
-        samples = run_fit(jds, rs, rerrs, thetas, terrs, sampler=sampler)
+        samples = run_fit(jds, rs, rerrs, thetas, terrs, nlive=nlive,dlogz=dlogz,bootstrap=0,phase0=phase0,a=a,e=e,omega=omega, sampler=sampler)
         fig = plot_fit(rs, thetas, samples)
         
         return fig
