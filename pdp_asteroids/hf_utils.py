@@ -1,6 +1,5 @@
-import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from huggingface_hub import HfApi, snapshot_download, upload_folder
 from .token_handler import TokenHandler
 
@@ -160,9 +159,10 @@ class HuggingFaceManager:
 
     def push_to_hf(
         self,
-        folder: Path = DEFAULT_WRITE_FOLDER,
+        folder: Union[str, Path],
         repo_id: str = DEFAULT_REPO_ID,
-        commit_message: str = "Update from facilitator notebook"
+        commit_message: str = "Update from facilitator notebook",
+        path_in_repo: Optional[str] = None
     ) -> None:
         """Add files and push changes to a HuggingFace repository.
         
@@ -170,25 +170,47 @@ class HuggingFaceManager:
             folder: Path to folder containing files to push
             repo_id: Name of dataset repository
             commit_message: Git commit message
+            path_in_repo: Optional path within the repo to push files to.
+                         If None, will use the folder's name as the path.
             
         Raises:
             ValueError: If folder doesn't exist or push fails
         """
+        folder = Path(folder)
         if not folder.exists():
             raise ValueError(f"Specified folder does not exist: {folder}")
 
         try:
-            upload_folder(
-                folder_path=str(folder),
-                repo_id=repo_id,
-                token=self.access_token,
-                commit_message=commit_message,
-                repo_type="dataset"
-            )
-            print(f"Successfully pushed {folder} to {repo_id}")
+            # If no path_in_repo specified, use the folder name
+            if path_in_repo is None:
+                path_in_repo = folder.name
+
+            # Create a temporary directory with the desired structure
+            import tempfile
+            import shutil
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir) / path_in_repo
+                temp_path.mkdir(parents=True, exist_ok=True)
+                
+                # Copy all files from source folder to temporary directory
+                for item in folder.glob('*'):
+                    if item.is_file():
+                        shutil.copy2(item, temp_path)
+                    elif item.is_dir():
+                        shutil.copytree(item, temp_path / item.name)
+
+                # Upload the temporary directory
+                upload_folder(
+                    folder_path=temp_dir,
+                    repo_id=repo_id,
+                    token=self.access_token,
+                    commit_message=commit_message,
+                    repo_type="dataset"
+                )
+                print(f"Successfully pushed {folder} to {repo_id}/{path_in_repo}")
 
         except Exception as e:
-            raise ValueError(f"Failed to push to repository: {str(e)}")
+            raise ValueError(f"Failed to push to repository: {str(e)}") 
 
     @staticmethod
     def _clean_directory(path: Path) -> None:
