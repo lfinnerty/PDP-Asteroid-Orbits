@@ -150,7 +150,7 @@ def make_orbit(
         >>> radii, angles = make_orbit(times, phase0, a, e, omega)
     """
     period = np.sqrt(a**3) * 365.25
-    mean_anomaly = 2 * np.pi * (phase0 + (times - times[0]) / period)
+    mean_anomaly = 2 * np.pi * (phase0 + (times - 0) / period)
     eccentric_anomaly = solve_kepler(mean_anomaly, e)
     
     # Convert eccentric anomaly to true anomaly using the tangent half-angle formula
