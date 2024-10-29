@@ -163,12 +163,12 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fw
     # plt.show()
     
     ### Write to disk
-    out_dir = output_dir/'injected_images'/output_str
-    out_dir.mkdir(exist_ok=True, parents=True)
+    # out_dir = output_dir/'injected_images'/output_str
+    output_dir.mkdir(exist_ok=True, parents=True)
     # out_dir.mkdir(exist_ok=True, parents=True)
 
-    fname1 = out_dir/(obsdate+'_'+output_str+'_frame1.fits')
-    fname2 = out_dir/(obsdate+'_'+output_str+'_frame2.fits')
+    fname1 = output_dir/(obsdate+'_'+output_str+'_frame1.fits')
+    fname2 = output_dir/(obsdate+'_'+output_str+'_frame2.fits')
     fits.writeto(fname1, data=im1, header=header, overwrite=True)
     fits.writeto(fname2, data=im2, header=header, overwrite=True)
 
@@ -265,7 +265,19 @@ def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive
 #     res = dsampler.results
 #     return res.samples_equal()
 
-def make_images(obsdate, jd, r, theta, delta,image_list, fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
+def make_images(
+        obsdate, 
+        jd, 
+        r, 
+        theta, 
+        delta,
+        image_list,
+        output_str,  
+        fwhm = 3.5, 
+        fluxlevel = 50,
+        noiselevel = 20,
+        output_dir: Path=FILE_DIR
+        ):
     parallax, sin_sun = dist_to_parallax(jd, r, theta, delta)
     dtheta = delta*2*np.pi/365.25
     baseline = np.sin(dtheta/2)
