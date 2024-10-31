@@ -1,5 +1,4 @@
 name: Python Tests
-
 on:
   push:
     branches:
@@ -19,34 +18,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+        
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
+          
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y liblapack3 libblas3 liblapack-dev libblas-dev gfortran
-
-      - name: Install MultiNest
-        run: |
-          git clone https://github.com/JohannesBuchner/MultiNest.git
-          cd MultiNest/build
-          cmake ..
-          make
-          sudo make install
-          cd ../..
-
-      - name: Set up MultiNest environment variables
-        run: |
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib" >> $GITHUB_ENV
-
+          sudo apt-get install -y liblapack3 libblas3 liblapack-dev libblas-dev
+          
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-
+          
       - name: Run tests
         run: pytest tests/ --mpl

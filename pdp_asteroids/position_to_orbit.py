@@ -135,19 +135,14 @@ def make_orbit(
     Returns:
         tuple[np.ndarray, np.ndarray]: A tuple containing:
             - radii (np.ndarray): Array of radial distances in AU
-            - angles (np.ndarray): Array of orbital angles in radians
+            - angles (np.ndarray): Array of orbital angles in radians [0, 2π]
 
     Note:
         - Period is calculated using Kepler's Third Law
         - All angles are in radians
         - The orbital period assumes 365.25 days per year
         - Phase0 represents the orbital phase at the first observation time
-        - The returned angle is the true anomaly plus omega
-
-    Example:
-        >>> times = np.array([2458000.0, 2458100.0])
-        >>> phase0, a, e, omega = 0.2, 1.5, 0.1, np.pi/2
-        >>> radii, angles = make_orbit(times, phase0, a, e, omega)
+        - The returned angle is the true anomaly plus omega, normalized to [0, 2π]
     """
     period = np.sqrt(a**3) * 365.25
     mean_anomaly = 2 * np.pi * (phase0 + (times - 0) / period)
@@ -162,7 +157,10 @@ def make_orbit(
     # Calculate radial distances using the orbit equation
     radii = a * (1 - e**2) / (1 + e * np.cos(true_anomaly))
 
-    return radii, true_anomaly + omega
+    # Add omega and normalize angles to [0, 2π]
+    angles = (true_anomaly + omega) % (2 * np.pi)
+
+    return radii, angles
 
 def parallax_to_dist(
     coords1: tuple[float, float],

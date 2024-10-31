@@ -195,10 +195,17 @@ def test_process_measurements(mock_parallax_to_dist, mock_dist_to_r, investigati
     assert obs_data.r_err == 0.2
 
 
+
+def test_fit_orbit_no_data(investigation):
+    """Test orbit fitting with no data."""
+    with pytest.raises(ValueError, match="No processed observations"):
+        investigation.fit_orbit()
+
+
 @patch('pdp_asteroids.investigation_manager.run_fit')
 @patch('pdp_asteroids.investigation_manager.plot_fit')
 def test_fit_orbit(mock_plot_fit, mock_run_fit, investigation):
-    """Test orbit fitting."""
+    """Test orbit fitting and plotting."""
     # Add some mock observation data using the actual dataclass
     investigation.data["2024-01-01"] = ObservationData(
         jd=2460000.5,
@@ -208,18 +215,19 @@ def test_fit_orbit(mock_plot_fit, mock_run_fit, investigation):
         theta_err=1e-4
     )
     
+    # Configure mocks
     mock_run_fit.return_value = np.array([[1, 2, 3, 4]])
     mock_plot_fit.return_value = Mock()
     
-    fig = investigation.fit_orbit()
+    # Test orbit fitting
+    samples = investigation.fit_orbit()
     assert mock_run_fit.called
+    assert not mock_plot_fit.called  # Should not be called during fit_orbit
+    
+    # Test orbit plotting
+    figures = investigation.plot_orbit()
     assert mock_plot_fit.called
-
-
-def test_fit_orbit_no_data(investigation):
-    """Test orbit fitting with no data."""
-    with pytest.raises(ValueError, match="No processed observations"):
-        investigation.fit_orbit()
+    assert len(figures) == 1  # Should have one figure for our one fit
 
 
 def test_save_load_data(investigation):
@@ -234,11 +242,14 @@ def test_save_load_data(investigation):
     )
     
     # Save and reload
-    investigation._save_data()
+    investigation._save_measurements()
+    
+    # Create new investigation instance
     new_investigation = OrbitInvestigation(
         base_path=investigation.base_path
     )
     
+    # Verify data was loaded
     assert "2024-01-01" in new_investigation.data
     loaded_data = new_investigation.data["2024-01-01"]
     assert loaded_data.jd == 2460000.5
@@ -246,3 +257,39 @@ def test_save_load_data(investigation):
     assert loaded_data.r_err == 0.1
     assert loaded_data.theta == 1.0
     assert loaded_data.theta_err == 1e-4
+
+
+# Add a new test for orbit fits saving/loading
+def test_save_load_orbit_fits(investigation):
+    """Test saving and loading orbit fits data."""
+    # Add some mock observation data
+    investigation.data["2024-01-01"] = ObservationData(
+        jd=2460000.5,
+        r=2.0,
+        r_err=0.1,
+        theta=1.0,
+        theta_err=1e-4
+    )
+    
+    # Add some orbit fits
+    with patch('pdp_asteroids.investigation_manager.run_fit') as mock_run_fit:
+        mock_run_fit.return_value = np.array([[1, 2, 3, 4]])
+        investigation.fit_orbit()
+        investigation.fit_orbit()  # Create a second fit
+    
+    # Save and reload
+    investigation._save_orbits()
+    
+    # Create new investigation instance
+    new_investigation = OrbitInvestigation(
+        base_path=investigation.base_path
+    )
+    
+    # Verify orbit fits were loaded
+    assert len(new_investigation.orbit_fits) == 2
+    assert 0 in new_investigation.orbit_fits
+    assert 1 in new_investigation.orbit_fits
+    np.testing.assert_array_equal(
+        new_investigation.orbit_fits[0],
+        np.array([[1, 2, 3, 4]])
+    )
