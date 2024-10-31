@@ -664,9 +664,9 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
 
     ### print orbital period
     period = np.round(np.sqrt(a_med**3),2)
-    p_low = np.sqrt(a_low**3)
-    p_high = np.sqrt(a_high**3)
-    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(np.round(p_high-period,2)) + ' / -'+str(np.round(period-p_low,2))+' years')
+    errp_low = np.round(np.sqrt(a_med**3) - np.sqrt(a_low**3),2 )
+    errp_high = np.round(np.sqrt(a_high**3) - np.sqrt(a_med**3),2)
+    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(errp_low) + ' / -'+str(errp_high)+' years')
 
     return fig
 
