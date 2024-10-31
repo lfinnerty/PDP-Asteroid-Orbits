@@ -646,7 +646,7 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
     
     for i in range(len(rs_fit)):
         ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
-        ax.text(thetas_fit[i]-1e-2,rs_fit[i]+1e-2,dates[i])
+        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
@@ -666,7 +666,7 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
     period = np.round(np.sqrt(a_med**3),2)
     errp_low = np.round(np.sqrt(a_med**3) - np.sqrt(a_low**3),2 )
     errp_high = np.round(np.sqrt(a_high**3) - np.sqrt(a_med**3),2)
-    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(errp_low) + ' / -'+str(errp_high)+' years')
+    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(errp_low) + ' / -'+str(errp_high)+' years',fontsize=14)
 
     return fig
 
