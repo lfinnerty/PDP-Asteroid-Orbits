@@ -548,7 +548,7 @@ class logl():
         return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive=100,dlogz=0.5,bootstrap=0,phase0=[0,1],a=[0.1,10],e=[0,0.99],omega=[0,1]):
+def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive=100,dlogz=0.5,bootstrap=0,phase0=[0,1],a=[0.4,40],e=[0,0.99],omega=[0,1]):
     prefix = '/content/fit_results/'
     if sampler=='dynesty':
         import dynesty
@@ -620,7 +620,7 @@ def make_jds(dates):
     return jds
 
 
-def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
+def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
     ### Plot Earth
 
@@ -644,7 +644,9 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
     ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
-    ax.scatter(thetas_fit, rs_fit, label='Measured asteroid positions')
+    for i in range(len(rs_fit)):
+        ax.scatter(thetas_fit, rs_fit, color='k',alpha=1.0,s=30)
+        ax.text(thetas_fit-1e-2,rs_fit+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
@@ -664,7 +666,7 @@ def plot_fit(rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
     period = np.round(np.sqrt(a_med**3),2)
     p_low = np.round(np.sqrt(a_low**3),2)
     p_high = np.round(np.sqrt(a_high**3),2)
-    print(r'Measured orbital period = '+str(period)+' +'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
+    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
 
     return fig
 

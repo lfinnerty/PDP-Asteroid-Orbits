@@ -202,7 +202,7 @@ class OrbitInvestigation:
         
         figures = []
         for fit_index, samples in self.orbit_fits.items():
-            fig = plot_fit(rs, thetas, samples)
+            fig = plot_fit(dates, rs, thetas, samples)
             fig.suptitle(f"Orbit Fit {fit_index}")
             
             if save_dir:
