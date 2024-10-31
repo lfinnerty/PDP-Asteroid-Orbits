@@ -645,8 +645,8 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     for i in range(len(rs_fit)):
-        ax.scatter(thetas_fit, rs_fit, color='k',alpha=1.0,s=30)
-        ax.text(thetas_fit-1e-2,rs_fit+1e-2,dates[i])
+        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30)
+        ax.text(thetas_fit[i]-1e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Turn off axes ticks, set axis limits based on semi-major axis
