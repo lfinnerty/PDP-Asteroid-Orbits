@@ -645,7 +645,7 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     for i in range(len(rs_fit)):
-        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30)
+        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
         ax.text(thetas_fit[i]-1e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
@@ -653,7 +653,7 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
     # ax.grid(False)
     ax.set_xticklabels([])
     ax.set_yticklabels([])
-    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.5,0.5,0.95])
+    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.05,0.5,0.95])
     rmax = 2*a_med+2*(a_high-a_med)
     if np.any(rs_fit < rmax) or rmax < 2.:
         rmax = 2*np.max(rs_fit)
@@ -664,9 +664,9 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
 
     ### print orbital period
     period = np.round(np.sqrt(a_med**3),2)
-    p_low = np.round(np.sqrt(a_low**3),2)
-    p_high = np.round(np.sqrt(a_high**3),2)
-    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(p_high-period) + ' / -'+str(period-p_low)+' years')
+    p_low = np.sqrt(a_low**3)
+    p_high = np.sqrt(a_high**3)
+    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(np.round(p_high-period,2)) + ' / -'+str(np.round(period-p_low,2))+' years')
 
     return fig
 
