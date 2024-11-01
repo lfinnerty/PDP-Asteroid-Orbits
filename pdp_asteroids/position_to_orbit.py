@@ -778,7 +778,7 @@ def run_fit(
    dlogz: float = 0.5,
    bootstrap: int = 0,
    phase0: Sequence[float] = [0, 1],
-   a: Sequence[float] = [0.4, 40],
+   a: Sequence[float] = [0.4, 20],
    e: Sequence[float] = [0, 0.99],
    omega: Sequence[float] = [0, 1]
 ) -> npt.NDArray[np.float64]:
