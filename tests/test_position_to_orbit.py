@@ -13,7 +13,7 @@ from pdp_asteroids.position_to_orbit import (
     dist_to_parallax,
     Gauss2D,
     inject_asteroid,
-    prior,
+    Prior,
     run_fit
 )
 

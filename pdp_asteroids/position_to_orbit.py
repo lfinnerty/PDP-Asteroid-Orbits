@@ -1,10 +1,15 @@
 import os
 from pathlib import Path
+from typing import Optional, Tuple, Sequence, Union, Literal
 
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from astropy.time import Time
 from astropy.io import fits
+from astropy.io.fits import HDUList
+
 
 FILE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 
@@ -424,8 +429,67 @@ def Gauss2D(
     # Calculate the Gaussian using the quadratic form
     return amp * np.exp(-a * (x - x0)**2 - b * (x - x0) * (y - y0) - c * (y - y0)**2)
 
+def inject_asteroid(
+    hdulst: HDUList,
+    parallax: float,
+    obsdate: str,
+    obsdelta: float,
+    jd: float,
+    theta: float,
+    sin_sun: float,
+    fwhm: float,
+    fluxlevel: float,
+    noiselevel: float,
+    output_str: str,
+    output_dir: Path = FILE_DIR
+) -> Tuple[np.ndarray, np.ndarray, Path, Path]:
+    """Inject a synthetic moving asteroid into a pair of astronomical images.
 
-def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fwhm, fluxlevel,noiselevel,output_str, output_dir: Path=FILE_DIR):
+    This function creates two synthetic images of a moving asteroid by injecting
+    a Gaussian PSF (Point Spread Function) into a base astronomical image. The
+    asteroid's position changes between the two images to simulate proper motion
+    and parallax effects.
+
+    Args:
+        hdulst: FITS HDU list containing the base image and header
+        parallax: Parallax angle in arcseconds
+        obsdate: Observation date string (format: YYYY-MM-DD)
+        obsdelta: Time difference between frames in days
+        jd: Julian Date of the observation
+        theta: Angular position in radians
+        sin_sun: Sine of the solar elongation angle
+        fwhm: Full Width at Half Maximum for the Gaussian PSF in pixels
+        fluxlevel: Brightness percentile in the image to set PSF amplitude
+        noiselevel: Standard deviation of additional Gaussian noise
+        output_str: String identifier for output filenames
+        output_dir: Directory to save output FITS files (default: FILE_DIR)
+
+    Returns:
+        Tuple containing:
+            - First image array with injected asteroid
+            - Second image array with injected asteroid
+            - Path to first output FITS file
+            - Path to second output FITS file
+
+    Notes:
+        - The function randomly flips the base image to increase variety
+        - PSF position is randomly chosen but constrained to avoid image edges
+        - Photon noise is simulated using Poisson statistics
+        - PSF shape includes random variations in size and orientation
+        - Output images are saved as FITS files with updated headers
+        - Image coordinates use the FITS standard convention
+        - The asteroid's position shift between frames is consistent with the
+          specified parallax angle
+
+    Example:
+        >>> from astropy.io import fits
+        >>> hdul = fits.open('base_image.fits')
+        >>> im1, im2, f1, f2 = inject_asteroid(
+        ...     hdul, 10.0, '2024-01-01', 0.25, 2460000.0, 
+        ...     1.5, 0.5, 3.0, 95.0, 0.1, 'test'
+        ... )
+        >>> print(f"Files saved to: {f1}, {f2}")
+    """
     ### Decide where to add inital PSF
     data = hdulst[0].data
     data[np.isnan(data)] = 3.
@@ -498,7 +562,53 @@ def inject_asteroid(hdulst, parallax, obsdate,obsdelta,  jd, theta, sin_sun,  fw
     ### Return two image arrays
     return im1, im2, fname1, fname2
 
-def prior_transform(u, phase0, a, e, omega):
+def prior_transform(
+    u: Union[Sequence[float], npt.NDArray[np.float64]],
+    phase0: Sequence[float],
+    a: Sequence[float],
+    e: Sequence[float],
+    omega: Sequence[float]
+) -> npt.NDArray[np.float64]:
+    """Transform unit hypercube parameters to physical orbital parameters.
+
+    This function implements the prior transformation for nested sampling,
+    converting parameters from the unit hypercube [0,1] to their physical
+    ranges for orbital fitting. It handles the following orbital parameters:
+    phase0 (orbital phase), a (semi-major axis), e (eccentricity), and
+    omega (argument of perihelion).
+
+    Args:
+        u: Unit hypercube parameters, array-like of length 4 with values in [0,1]
+        phase0: [min, max] range for initial orbital phase
+        a: [min, max] range for semi-major axis in AU
+        e: [min, max] range for eccentricity
+        omega: [min, max] range for argument of perihelion in units of 2π
+
+    Returns:
+        Array of transformed parameters in physical units:
+            - x[0]: orbital phase in range [phase0_min, phase0_max]
+            - x[1]: semi-major axis in range [a_min, a_max] AU
+            - x[2]: eccentricity in range [e_min, e_max]
+            - x[3]: argument of perihelion in range [omega_min, omega_max]*2π rad
+
+    Notes:
+        - The transformation is linear for each parameter
+        - Omega is scaled by 2π to convert to radians
+        - Input ranges should be physically meaningful:
+            * phase0: typically [0, 1]
+            * a: positive values, e.g., [0.4, 40] AU
+            * e: [0, 1) for bound orbits
+            * omega: typically [0, 1] for full 2π range
+
+    Example:
+        >>> u = np.array([0.5, 0.5, 0.5, 0.5])
+        >>> phase0 = [0, 1]
+        >>> a = [0.4, 40]
+        >>> e = [0, 0.99]
+        >>> omega = [0, 1]
+        >>> x = prior_transform(u, phase0, a, e, omega)
+        >>> print(f"Transformed parameters: {x}")
+    """
     x = np.array(u)
     x[0] = u[0]*(phase0[1]-phase0[0])+phase0[0]
 
@@ -518,101 +628,342 @@ def prior_transform(u, phase0, a, e, omega):
 
     return x
 
-class prior():
-    def __init__(self, phase0,a,e,omega):
-        self.phase0 = phase0
-        self.a = a
-        self.e = e
-        self.omega = omega
-    def __call__(self, x):
-        return prior_transform(x, self.phase0,self.a, self.e, self.omega)
+from dataclasses import dataclass
+from typing import Sequence, Union
+import numpy as np
+import numpy.typing as npt
 
-def loglike(x, times, rs, rerrs, thetas, thetaerrs):
-    ### Obs, obs errs are sun-centered distances at specified times
-    ### Angles are assumed to match
+
+@dataclass
+class Prior:
+    """A callable prior distribution for orbital parameters.
+    
+    This class represents a prior distribution for nested sampling of orbital
+    parameters. It stores the ranges for each parameter and provides a callable
+    interface to transform unit hypercube values to physical parameter space.
+    
+    Attributes:
+        phase0: [min, max] range for initial orbital phase
+        a: [min, max] range for semi-major axis in AU
+        e: [min, max] range for eccentricity
+        omega: [min, max] range for argument of perihelion in units of 2π
+
+    Example:
+        >>> prior = Prior(
+        ...     phase0=[0, 1],
+        ...     a=[0.4, 40],
+        ...     e=[0, 0.99],
+        ...     omega=[0, 1]
+        ... )
+        >>> u = np.array([0.5, 0.5, 0.5, 0.5])
+        >>> x = prior(u)  # Transforms parameters to physical space
+    """
+    phase0: Sequence[float]
+    a: Sequence[float]
+    e: Sequence[float]
+    omega: Sequence[float]
+
+    def __call__(
+        self, 
+        x: Union[Sequence[float], npt.NDArray[np.float64]]
+    ) -> npt.NDArray[np.float64]:
+        return prior_transform(x, self.phase0, self.a, self.e, self.omega)
+
+
+
+def loglike(
+    x: Union[Sequence[float], npt.NDArray[np.float64]],
+    times: Union[Sequence[float], npt.NDArray[np.float64]],
+    rs: Union[Sequence[float], npt.NDArray[np.float64]],
+    rerrs: Union[Sequence[float], npt.NDArray[np.float64]],
+    thetas: Union[Sequence[float], npt.NDArray[np.float64]],
+    thetaerrs: Union[Sequence[float], npt.NDArray[np.float64]]
+) -> float:
+    """Calculate the log-likelihood for orbital parameter fitting.
+
+    This function computes the log-likelihood of orbital parameters given
+    observed positions and their uncertainties. It fits orbits in Cartesian
+    coordinates by comparing the observed and predicted x and y positions.
+
+    Args:
+        x: Orbital parameters array [phase0, a, e, omega] where:
+            - phase0: initial orbital phase
+            - a: semi-major axis in AU
+            - e: eccentricity
+            - omega: argument of perihelion in radians
+        times: Observation times in Julian Days
+        rs: Observed radial distances from Sun in AU
+        rerrs: Uncertainties in radial distances
+        thetas: Observed angular positions in radians
+        thetaerrs: Uncertainties in angular positions (unused in current impl)
+
+    Returns:
+        Log-likelihood value. More negative values indicate worse fits,
+        while values closer to zero indicate better fits.
+
+    Notes:
+        - The implementation uses Cartesian coordinates (x,y) for the fit
+        - The likelihood assumes Gaussian uncertainties
+        - Current implementation uses rerrs for both x and y components
+        - An alternative implementation using polar coordinates is commented out
+        - The negative sign makes this suitable for minimization
+
+    Example:
+        >>> x = np.array([0.5, 2.0, 0.1, np.pi/2])  # Orbital parameters
+        >>> times = np.array([2460000.0, 2460010.0])  # Julian dates
+        >>> rs = np.array([1.5, 1.6])  # Observed distances
+        >>> rerrs = np.array([0.1, 0.1])  # Uncertainties
+        >>> thetas = np.array([0.1, 0.2])  # Observed angles
+        >>> thetaerrs = np.array([0.01, 0.01])  # Angular uncertainties
+        >>> ll = loglike(x, times, rs, rerrs, thetas, thetaerrs)
+    """
+    # Calculate predicted orbit
     fitr, fittheta = make_orbit(times, x[0], x[1], x[2], x[3])
+    
+    # Convert both predicted and observed positions to Cartesian coordinates
     fitx, fity = rthet_to_xy(fitr, fittheta)
     obsx, obsy = rthet_to_xy(rs, thetas)
 
+    # Calculate log-likelihood assuming Gaussian errors
     return -0.5 * np.sum((fitx-obsx)**2/rerrs**2) - 0.5*np.sum((fity-obsy)**2/rerrs**2)
-    # return -0.5*np.sum((fitr-rs)**2/rerrs**2 + (thetas - fittheta)**2/(thetaerrs)**2) 
-
-class logl():
-    def __init__(self, times, rs, rerrs, thetas, thetaerrs):
-        self.times = times 
-        self.rs = rs
-        self.rerrs = rerrs
-        self.thetas = thetas
-        self.thetaerrs = thetaerrs
-    def __call__(self, x):
-        return loglike(x, self.times,self.rs, self.rerrs, self.thetas, self.thetaerrs)
 
 
-def run_fit(jds, rs_fit, rs_err, thetas_fit, thetas_err,sampler='dynesty', nlive=100,dlogz=0.5,bootstrap=0,phase0=[0,1],a=[0.4,40],e=[0,0.99],omega=[0,1]):
-    prefix = '/content/fit_results/'
-    if sampler=='dynesty':
-        import dynesty
-        loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        prior_func = prior(phase0,a,e,omega)
-        dsampler = dynesty.NestedSampler(loglike_func, prior_func, 4,
-                                                 nlive=nlive,bootstrap=bootstrap)
-        dsampler.run_nested(dlogz=dlogz,maxcall=200000)
-        res = dsampler.results
-        return res.samples_equal()
-    else:
-        import ultranest
-        if not os.path.isdir(prefix):
-            os.mkdir(prefix)
-        loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-        prior_func = prior(phase0,a,e,omega)
-        sampler = ultranest.ReactiveNestedSampler(['phase0', 'a', 'e','omega'], loglike_func,prior_func,log_dir=prefix,resume='overwrite')
-        result = sampler.run(min_num_live_points=nlive,dlogz=dlogz,min_ess=nlive,update_interval_volume_fraction=0.4,max_num_improvement_loops=1)
-        return result['samples']
-    # else:
-    #     from pymultinest.solve import solve
-    #     if not os.path.isdir(prefix):
-    #         os.mkdir(prefix)
-    #     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-    #     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=100, evidence_tolerance=0.5,
-    #                     outputfiles_basename=prefix, verbose=False, resume=False)
-    #     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-    #     return samples
+@dataclass
+class LogLikelihood:
+    """A callable log-likelihood function for orbital parameter fitting.
+    
+    This class represents a log-likelihood function for nested sampling of 
+    orbital parameters. It stores the observed data and measurement uncertainties,
+    providing a callable interface for parameter optimization.
+    
+    Attributes:
+        times: Observation times in Julian Days
+        rs: Observed radial distances from Sun in AU
+        rerrs: Uncertainties in radial distances
+        thetas: Observed angular positions in radians
+        thetaerrs: Uncertainties in angular positions
+
+    Example:
+        >>> times = np.array([2460000.0, 2460010.0])
+        >>> rs = np.array([1.5, 1.6])
+        >>> rerrs = np.array([0.1, 0.1])
+        >>> thetas = np.array([0.1, 0.2])
+        >>> thetaerrs = np.array([0.01, 0.01])
+        >>> ll = LogLikelihood(times, rs, rerrs, thetas, thetaerrs)
+        >>> x = np.array([0.5, 2.0, 0.1, np.pi/2])
+        >>> log_likelihood = ll(x)  # Compute log-likelihood for parameters x
+    """
+    times: Union[Sequence[float], npt.NDArray[np.float64]]
+    rs: Union[Sequence[float], npt.NDArray[np.float64]]
+    rerrs: Union[Sequence[float], npt.NDArray[np.float64]]
+    thetas: Union[Sequence[float], npt.NDArray[np.float64]]
+    thetaerrs: Union[Sequence[float], npt.NDArray[np.float64]]
+
+    def __call__(
+        self, 
+        x: Union[Sequence[float], npt.NDArray[np.float64]]
+    ) -> float:
+        return loglike(x, self.times, self.rs, self.rerrs, self.thetas, 
+                      self.thetaerrs)
 
 
-# def run_fit_dynesty(jds, rs_fit, rs_err, thetas_fit, thetas_err):
-#     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-#     dsampler = dynesty.NestedSampler(loglike_func, prior_transform, 4,
-#                                              nlive=400)
-#     dsampler.run_nested(dlogz=0.5)
-#     res = dsampler.results
-#     return res.samples_equal()
+def run_fit(
+   jds: Union[Sequence[float], npt.NDArray[np.float64]],
+   rs_fit: Union[Sequence[float], npt.NDArray[np.float64]], 
+   rs_err: Union[Sequence[float], npt.NDArray[np.float64]],
+   thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]], 
+   thetas_err: Union[Sequence[float], npt.NDArray[np.float64]],
+   sampler: Literal['dynesty', 'ultranest'] = 'dynesty',
+   nlive: int = 100,
+   dlogz: float = 0.5,
+   bootstrap: int = 0,
+   phase0: Sequence[float] = [0, 1],
+   a: Sequence[float] = [0.4, 40],
+   e: Sequence[float] = [0, 0.99],
+   omega: Sequence[float] = [0, 1]
+) -> npt.NDArray[np.float64]:
+   """Fit orbital parameters using nested sampling.
+
+   This function fits orbital parameters to observational data using either
+   dynesty or ultranest nested sampling algorithms. It optimizes the orbital
+   parameters by maximizing the likelihood of the observed positions given
+   the model parameters.
+
+   Args:
+       jds: Observation times in Julian Days
+       rs_fit: Observed radial distances from Sun in AU
+       rs_err: Uncertainties in radial distances
+       thetas_fit: Observed angular positions in radians
+       thetas_err: Uncertainties in angular positions
+       sampler: Nested sampling algorithm to use ('dynesty' or 'ultranest')
+       nlive: Number of live points for nested sampling
+       dlogz: Target evidence tolerance for convergence
+       bootstrap: Number of bootstrap realizations (dynesty only)
+       phase0: [min, max] range for initial orbital phase
+       a: [min, max] range for semi-major axis in AU
+       e: [min, max] range for eccentricity
+       omega: [min, max] range for argument of perihelion in units of 2π
+
+   Returns:
+       Array of equally weighted posterior samples. Each row contains
+       [phase0, a, e, omega] for a single sample.
+
+   Notes:
+       - Output directory is fixed to '/content/fit_results/'
+       - dynesty's maxcall parameter is set to 200000
+       - ultranest uses specific settings for improvement loops and updates
+       - A commented implementation for pymultinest is maintained for reference
+
+   Example:
+       >>> times = np.array([2460000.0, 2460010.0])
+       >>> rs = np.array([1.5, 1.6])
+       >>> rs_errs = np.array([0.1, 0.1])
+       >>> thetas = np.array([0.1, 0.2])
+       >>> theta_errs = np.array([0.01, 0.01])
+       >>> samples = run_fit(times, rs, rs_errs, thetas, theta_errs)
+   """
+   prefix = Path('/content/fit_results/')
+
+   if sampler == 'dynesty':
+       import dynesty
+       loglike_func = LogLikelihood(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+       prior_func = Prior(phase0, a, e, omega)
+       dsampler = dynesty.NestedSampler(
+           loglike_func, 
+           prior_func, 
+           4,
+           nlive=nlive,
+           bootstrap=bootstrap
+       )
+       dsampler.run_nested(dlogz=dlogz, maxcall=200_000)
+       res = dsampler.results
+       return res.samples_equal()
+   
+   else:  # ultranest
+       import ultranest
+       prefix.mkdir(exist_ok=True, parents=True)
+       
+       loglike_func = LogLikelihood(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+       prior_func = Prior(phase0, a, e, omega)
+       sampler = ultranest.ReactiveNestedSampler(
+           ['phase0', 'a', 'e', 'omega'],
+           loglike_func,
+           prior_func,
+           log_dir=str(prefix),
+           resume='overwrite'
+       )
+       result = sampler.run(
+           min_num_live_points=nlive,
+           dlogz=dlogz,
+           min_ess=nlive,
+           update_interval_volume_fraction=0.4,
+           max_num_improvement_loops=1
+       )
+       return result['samples']
+
+   # Alternative implementation using pymultinest:
+   # else:
+   #     from pymultinest.solve import solve
+   #     prefix.mkdir(exist_ok=True, parents=True)
+   #     loglike_func = LogLikelihood(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+   #     result = solve(
+   #         loglike_func, 
+   #         prior_transform, 
+   #         n_dims=4, 
+   #         n_live_points=100,
+   #         evidence_tolerance=0.5,
+   #         outputfiles_basename=str(prefix),
+   #         verbose=False, 
+   #         resume=False
+   #     )
+   #     samples = np.genfromtxt(str(prefix/'post_equal_weights.dat'))[:,:-1]
+   #     return samples
 
 def make_images(
-        obsdate, 
-        jd, 
-        r, 
-        theta, 
-        delta,
-        image_list,
-        output_str,  
-        fwhm = 3.5, 
-        fluxlevel = 50,
-        noiselevel = 20,
-        output_dir: Path=FILE_DIR
-        ):
-    parallax, sin_sun = dist_to_parallax(jd, r, theta, delta)
-    dtheta = delta*2*np.pi/365.25
-    baseline = np.sin(dtheta/2)
+   obsdate: str,
+   jd: float,
+   r: float,
+   theta: float,
+   delta: float,
+   image_list: Sequence[Union[str, Path]],
+   output_str: str,
+   fwhm: float = 3.5,
+   fluxlevel: float = 50,
+   noiselevel: float = 20,
+   output_dir: Path = FILE_DIR
+) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], Path, Path]:
+    """Create synthetic asteroid images from templates.
 
-    ### Pick an image
+    This function generates a pair of astronomical images containing a synthetic
+    moving asteroid. It calculates the expected parallax motion based on the
+    orbital parameters, selects a random template image, and injects the
+    synthetic asteroid with appropriate motion between frames.
+
+    Args:
+        obsdate: Observation date string (format: YYYY-MM-DD)
+        jd: Julian Date of the observation
+        r: Radial distance from Sun in AU
+        theta: Angular position in radians
+        delta: Time difference between frames in days
+        image_list: List of paths to template FITS images
+        output_str: String identifier for output filenames
+        fwhm: Full Width at Half Maximum for the Gaussian PSF in pixels
+            (default: 3.5)
+        fluxlevel: Brightness percentile in the image to set PSF amplitude
+            (default: 50)
+        noiselevel: Standard deviation of additional Gaussian noise
+            (default: 20)
+        output_dir: Directory to save output FITS files (default: FILE_DIR)
+
+    Returns:
+        Tuple containing:
+            - First image array with injected asteroid
+            - Second image array with injected asteroid
+            - Path to first output FITS file
+            - Path to second output FITS file
+
+    Notes:
+        - Automatically calculates parallax and solar elongation from orbit
+        - Randomly selects a template image from the provided list
+        - Uses Earth's orbital period of 365.25 days for timing calculations
+        - Injects asteroid with realistic position shift between frames
+        - Creates FITS files with appropriate headers and WCS information
+
+    Example:
+        >>> import glob
+        >>> templates = glob.glob('path/to/templates/*.fits')
+        >>> im1, im2, f1, f2 = make_images(
+        ...     '2024-01-01', 2460000.0, 2.5, np.pi/2, 0.25,
+        ...     templates, 'test'
+        ... )
+        >>> print(f"Files saved to: {f1}, {f2}")
+    """
+    # Calculate parallax and solar elongation
+    parallax, sin_sun = dist_to_parallax(jd, r, theta, delta)
+    dtheta = delta * 2 * np.pi / 365.25
+    baseline = np.sin(dtheta / 2)
+
+    # Select random template image
     nimages = len(image_list)
-    idx = np.random.randint(0,nimages)
-    hdulst = fits.open(image_list[idx])
-    im1, im2, f1, f2 = inject_asteroid(hdulst, parallax, obsdate, delta, jd, theta, sin_sun, fwhm, fluxlevel,noiselevel,output_str, output_dir=output_dir)
+    idx = np.random.randint(0, nimages)
+    with fits.open(image_list[idx]) as hdulst:
+        im1, im2, f1, f2 = inject_asteroid(
+            hdulst, parallax, obsdate, delta, jd, theta, sin_sun,
+            fwhm, fluxlevel, noiselevel, output_str, output_dir=output_dir
+        )
 
     return im1, im2, f1, f2
 
-def make_jds(dates):
+
+def make_jds(dates: Sequence[str]) -> npt.NDArray[np.float64]:
+    """Convert dates to Julian dates at noon UTC.
+    
+    Args:
+        dates: Sequence of date strings in YYYY-MM-DD format
+        
+    Returns:
+        Array of Julian dates for noon UTC on each input date
+    """
     jds = []
     for date in dates:
         jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
@@ -620,7 +971,31 @@ def make_jds(dates):
     return jds
 
 
-def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_period=10):
+def plot_fit(
+   dates: Sequence[str],
+   rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   samples: npt.NDArray[np.float64],
+   truths: Optional[Sequence[float]] = None,
+   default_plot_period: float = 10
+) -> Figure:
+    """Create a polar plot of orbital fits with uncertainty.
+
+    Generates a figure showing the fitted orbit(s), observed positions,
+    and reference orbits for Earth and Jupiter. If provided, also shows
+    the true orbit for comparison.
+
+    Args:
+        dates: Observation date strings
+        rs_fit: Observed radial distances in AU
+        thetas_fit: Observed angular positions in radians
+        samples: MCMC/nested sampling posterior samples for orbital parameters
+        truths: True orbital parameters [phase0, a, e, omega] if known
+        default_plot_period: Default orbital period in years if truths not provided
+
+    Returns:
+        Matplotlib figure containing the orbital fit plot
+    """
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
     ### Plot Earth
 
@@ -722,7 +1097,7 @@ def plot_fit(dates, rs_fit, thetas_fit, samples, truths=None, default_plot_perio
 
 
 #     prefix = 'fit_results/'
-#     loglike_func = logl(jds, rs_fit, rs_err, thetas_fit, thetas_err)
+#     loglike_func = LogLikelihood(jds, rs_fit, rs_err, thetas_fit, thetas_err)
 #     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
 #                     outputfiles_basename=prefix, verbose=False, resume=False)
 #     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
