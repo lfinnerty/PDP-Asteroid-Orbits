@@ -44,10 +44,10 @@ class OrbitInvestigation:
         measurements_file (Path): Path to measurements pickle file
         orbits_file (Path): Path to orbit fits pickle file
     """
-    
+    # base_path: str = "/content/observations_2024/", 
     def __init__(
         self, 
-        base_path: str = "/content/observations_2024/", 
+        base_path: str = "observations_2024/", 
         group: str = "test",
         hf_token: Optional[str] = None,
         repo_id: str = "hartnellpdp/observations_2024"
