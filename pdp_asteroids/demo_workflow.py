@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
         ### Fit and plot the orbit
         samples = run_fit(jds, fit_r, err_r, thetas, 1e-4*np.ones_like(thetas))
-        fig  = plot_fit(rs_fit, thetas_fit, samples, truths=[p0,a,e,omega])
+        fig  = plot_figure_animation(rs_fit, thetas_fit, samples, truths=[p0,a,e,omega])
         plt.show(block=False)
 
         ### Ask for a new date, baseline

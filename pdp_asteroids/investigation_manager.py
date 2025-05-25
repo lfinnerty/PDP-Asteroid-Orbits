@@ -211,6 +211,43 @@ class OrbitInvestigation:
             figures.append(fig)
         
         return figures
+
+
+    def plot_orbit_animation(self, save_dir: Optional[str] = None) -> List[plt.Figure]:
+        """Plot all stored orbit fits.
+        
+        Args:
+            save_dir: Optional directory to save plot files
+            
+        Returns:
+            List[plt.Figure]: List of generated figures
+            
+        Raises:
+            ValueError: If no orbit fits available
+        """
+        if not self.orbit_fits:
+            raise ValueError("No orbit fits available")
+        
+        if save_dir:
+            save_path = Path(save_dir)
+            save_path.mkdir(exist_ok=True, parents=True)
+        
+        # Prepare data arrays
+        dates = sorted(self.data.keys())
+        rs = np.array([self.data[d].r for d in dates])
+        thetas = np.array([self.data[d].theta for d in dates])
+        
+        animations = []
+        for fit_index, samples in self.orbit_fits.items():
+            ani = plot_fit_animation(dates, rs, thetas, samples)
+            ani.suptitle(f"Orbit Fit {fit_index}")
+            
+            if save_dir:
+                ani.save(save_path / f"orbit_fit_{fit_index}.gif")
+            
+            animations.append(ani)
+        
+        return animations
     
     def clear_investigation(self, confirm: bool = True) -> None:
         """Clear local investigation data and reset the investigation state.

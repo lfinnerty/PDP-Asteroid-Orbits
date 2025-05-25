@@ -6,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+import matplotlib.animation as animation
 from astropy.time import Time
 from astropy.io import fits
 from astropy.io.fits import HDUList
@@ -1046,74 +1047,131 @@ def plot_fit(
     return fig
 
 
-# if __name__ == '__main__':
-#     ### Image filenames
-#     image_list = glob('imagedata/*.fits')
-#     nimages = len(image_list)
-#     print(image_list)
+def calc_fit(
+   rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   samples: npt.NDArray[np.float64],
+   truths: Optional[Sequence[float]] = None,
+   default_plot_period: float = 10
+) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Creates the data arrays to animate an orbit fit, with uncertainties.
 
-#     ### True parameters
-#     p0, a, e, omega = 0.2, 1.2, 0.83, np.pi/2.
-#     period = 365.25*np.sqrt(a**3)
+    Generates arrays for the fitted orbit(s), observed positions,
+    and reference orbits for Earth and Jupiter. If provided, also shows
+    the true orbit for comparison.
 
-#     print('Period [days]:', period)
+    Args:
+        rs_fit: Observed radial distances in AU
+        thetas_fit: Observed angular positions in radians
+        samples: MCMC/nested sampling posterior samples for orbital parameters
+        truths: True orbital parameters [phase0, a, e, omega] if known
+        default_plot_period: Default orbital period in years if truths not provided
+
+    Returns:
+        Numpy arrays for the times, posterior rs, posterior thetas, true rs, 
+        true thetas, and orbital period (with errors)
+    """
+
+    ### Make true orbit, if given
+    if truths is not None:
+        a = truths[1]
+        period = 365.25*np.sqrt(a**3)
+        ptimes = np.linspace(0, 2*period,300)
+        true_r, true_theta = make_orbit(ptimes, *truths)
+    else:
+        period = default_plot_period*365.25 #years
+        true_r, true_theta = np.array([]), np.array([])
+    
+    ### Make posterior draws
+    ptimes = np.linspace(0, 2*period,300) 
+    rs = np.empty(200, ptimes.size)
+    thetas = np.empty(200, ptimes.size)
+    for i in range(200):
+        rs[i], thetas[i] = make_orbit(ptimes, *samples[i])
+
+    return ptimes, rs, thetas, true_r, true_theta
+
+def plot_fit_animation(
+   dates: Sequence[str],
+   rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
+   samples: npt.NDArray[np.float64],
+   truths: Optional[Sequence[float]] = None,
+   default_plot_period: float = 10
+) -> Figure:
+    """Create a polar plot of orbital fits with uncertainty.
+
+    Generates a figure showing the fitted orbit(s), observed positions,
+    and reference orbits for Earth and Jupiter. If provided, also shows
+    the true orbit for comparison.
+
+    Args:
+        dates: Observation date strings
+        rs_fit: Observed radial distances in AU
+        thetas_fit: Observed angular positions in radians
+        samples: MCMC/nested sampling posterior samples for orbital parameters
+        truths: True orbital parameters [phase0, a, e, omega] if known
+        default_plot_period: Default orbital period in years if truths not provided
+
+    Returns:
+        Matplotlib animation containing the orbital fit plot
+    """
+    ### Make the arrays
+    ptimes, rs, thetas, true_r, true_theta,= calc_fit(rs_fit, thetas_fit, samples, truths, default_plot_period)
+
+    ### Get limits
+    low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
+
+    ### Make the initial figure
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
+    ax.set_aspect('equal')
+    ax.autoscale(eanable=False)
+    rmax = 2*med[1]+2*(high[1]-med[1])
+    if np.any(rs_fit < rmax) or rmax < 2.:
+        rmax = 2*np.max(rs_fit)
+        if rmax  < 2:
+            rmax = 2.
+    ax.set_rmax(rmax)
+
+    ### Draw Earth and Jupiter
+    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
+    ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
+    
+    ### Draw observed points
+    for i in range(len(rs_fit)):
+        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
+        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
+    ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
+    ### Time placeholder
+    dt = ptimes[1]-ptimesp[0]
+    time_template = 'Date = %.1f years'
+    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+
+    ### Legend
+
+    ### Text with orbital parameters 
     
 
-#     ### Given a list of dates, predict observables
-#     obsdates = ['2025-01-18', '2025-03-02', '2025-04-01', '2025-04-29', '2025-05-12']
-#     obsdelta = 4/24. ### In days
+    ### Set up objects for plotting
+    lines = []
+    for i in range(rs.shape[0]):
+        line, = ax.plot(0, 0)
+        lines.append(line)
 
-#     jds = []
-#     for date in obsdates:
-#         jds.append(Time(date+'T12:00:00', format='isot', scale='utc').jd)
-#     jds = np.asarray(jds)
-    
-#     rs, thetas = make_orbit(jds, p0, a, e, omega)
+    ### Animation loop
+    def animate(i):
+        for j,line in enumerate(lines):
+            thisr = rs[j,:i]
+            thistheta = thetas[j,:i]
+            line.set_data(thistheta, thisr)
+            time_text.set_text(time_template % (i*dt + ptimes[0]))
+        return lines, time_text
 
-#     for i in range(len(rs)):
-#         # ax.scatter(2*np.pi/365.25 *(jds[i]-2460392.400856), 1)
-#         # ax.scatter(thetas[i], rs[i])
-#         parallax = dist_to_parallax(jds[i], rs[i], thetas[i], obsdelta)
-#         dtheta = obsdelta*2*np.pi/365.25
-#         baseline = np.sin(dtheta/2)
-#         print(obsdates[i], 'Parallax:', parallax, 'Distance:', 206265*baseline/parallax)
-
-#         ### Pick an image
-#         idx = np.random.randint(0,nimages)
-#         hdulst = fits.open(image_list[idx])
-#         im1, im2 = inject_asteroid(hdulst, parallax, obsdates[i], obsdelta)
+    ### Actually make the animation
+    ani = animation.FuncAnimation(fig,animate,ptimes.size,blit=True)
+    plt.show()
 
 
+    ### Return
+    return ani
 
-#     ## Add errors to rs, thetas
-#     ### Note that students will give us values for r and its error
-#     ### We will know theta already from the orbital parameters
-#     rs_err = np.random.normal(0*np.ones_like(rs),3e-2)
-#     rs_fit=rs+rs_err
-
-#     ### This one we specify
-#     thetas_err = np.random.normal(0*np.ones_like(thetas),1e-4)
-#     thetas_fit = thetas+thetas_err
-
-
-#     prefix = 'fit_results/'
-#     loglike_func = LogLikelihood(jds, rs_fit, rs_err, thetas_fit, thetas_err)
-#     result = solve(loglike_func, prior_transform, n_dims=4, n_live_points=400, evidence_tolerance=0.5,
-#                     outputfiles_basename=prefix, verbose=False, resume=False)
-#     samples = np.genfromtxt(prefix+'post_equal_weights.dat')[:,:-1]
-
-
-#     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-#     ax.scatter(thetas_fit, rs_fit)
-#     ptimes = np.linspace(0, 2*period,300)
-#     true_r, true_theta = make_orbit(ptimes, p0, a, e, omega)
-#     ax.plot(true_theta, true_r, color='k')
-#     for i in range(200):
-#         rs, thetas = make_orbit(ptimes, *samples[i])
-#         ax.plot(thetas,rs,color='r',alpha=0.05)
-#     ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g')
-#     plt.show()
-
-
-
-   
