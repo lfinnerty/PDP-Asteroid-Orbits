@@ -13,7 +13,8 @@ from .position_to_orbit import (
     parallax_to_dist, 
     dist_to_r,
     run_fit,
-    plot_fit
+    plot_fit,
+    plot_fit_animation
 )
 from .hf_utils import hf_manager, HuggingFaceManager
 
@@ -47,7 +48,7 @@ class OrbitInvestigation:
     # base_path: str = "/content/observations_2024/", 
     def __init__(
         self, 
-        base_path: str = "observations_2024/", 
+        base_path: str = "/content/observations_2024/", 
         group: str = "test",
         hf_token: Optional[str] = None,
         repo_id: str = "hartnellpdp/observations_2024"

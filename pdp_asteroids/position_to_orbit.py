@@ -1076,17 +1076,18 @@ def calc_fit(
     if truths is not None:
         a = truths[1]
         period = 365.25*np.sqrt(a**3)
-        ptimes = np.linspace(0, 2*period,300)
+        ptimes = np.linspace(0, 2*period,1000)
         true_r, true_theta = make_orbit(ptimes, *truths)
     else:
         period = default_plot_period*365.25 #years
         true_r, true_theta = np.array([]), np.array([])
     
     ### Make posterior draws
-    ptimes = np.linspace(0, 2*period,300) 
-    rs = np.empty(200, ptimes.size)
-    thetas = np.empty(200, ptimes.size)
-    for i in range(200):
+    ndraws = 50
+    ptimes = np.linspace(0, 2*period,1000) 
+    rs = np.empty((ndraws, ptimes.size))
+    thetas = np.empty((ndraws, ptimes.size))
+    for i in range(ndraws):
         rs[i], thetas[i] = make_orbit(ptimes, *samples[i])
 
     return ptimes, rs, thetas, true_r, true_theta
@@ -1097,7 +1098,7 @@ def plot_fit_animation(
    thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    samples: npt.NDArray[np.float64],
    truths: Optional[Sequence[float]] = None,
-   default_plot_period: float = 10
+   default_plot_period: float = 3
 ) -> Figure:
     """Create a polar plot of orbital fits with uncertainty.
 
@@ -1125,7 +1126,9 @@ def plot_fit_animation(
     ### Make the initial figure
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
     ax.set_aspect('equal')
-    ax.autoscale(eanable=False)
+    ax.autoscale(enable=False)
+    ax.axis('off')
+    ax.grid(False)
     rmax = 2*med[1]+2*(high[1]-med[1])
     if np.any(rs_fit < rmax) or rmax < 2.:
         rmax = 2*np.max(rs_fit)
@@ -1143,20 +1146,25 @@ def plot_fit_animation(
         ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
     ### Time placeholder
-    dt = ptimes[1]-ptimesp[0]
-    time_template = 'Date = %.1f years'
+    dt = (ptimes[1]-ptimes[0])/365.25
+    # print(ptimes)
+    time_template = 'Date = %.1f'
     time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
     ### Legend
 
     ### Text with orbital parameters 
-    
+
 
     ### Set up objects for plotting
+    ### FIXME add animation of Earth
     lines = []
+    pts = []
     for i in range(rs.shape[0]):
-        line, = ax.plot(0, 0)
+        line, = ax.plot(0, 0,color='r',alpha=0.1)
         lines.append(line)
+        pt, = ax.plot(0,0,'o',color='r')
+        pts.append(pt)
 
     ### Animation loop
     def animate(i):
@@ -1164,7 +1172,12 @@ def plot_fit_animation(
             thisr = rs[j,:i]
             thistheta = thetas[j,:i]
             line.set_data(thistheta, thisr)
-            time_text.set_text(time_template % (i*dt + ptimes[0]))
+            # pt[j].set_data(thetas[j,i],rs[j,i])
+            # ax.scatter(thetas[j,i],rs[j,i])
+            #### Fix the date printing to be the actual date of the fitting epoch
+            time_text.set_text(time_template % (i*dt + 2025))
+        for j, pt in enumerate(pts):
+            pt.set_data([thetas[j,i]],[rs[j,i]])
         return lines, time_text
 
     ### Actually make the animation
