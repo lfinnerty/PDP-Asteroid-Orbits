@@ -240,13 +240,13 @@ class OrbitInvestigation:
         
         animations = []
         for fit_index, samples in self.orbit_fits.items():
-            ani = plot_fit_animation(dates, rs, thetas, samples)
-            ani.suptitle(f"Orbit Fit {fit_index}")
-            
-            if save_dir:
-                ani.save(save_path / f"orbit_fit_{fit_index}.gif")
-            
-            animations.append(ani)
+            if fit_index ==0:
+                ani = plot_fit_animation(dates, rs, thetas, samples, fit_index+1)
+
+                if save_dir:
+                    ani.save(save_path / f"orbit_fit_{fit_index+1}.gif")
+                
+                animations.append(ani)
         
         return animations
     

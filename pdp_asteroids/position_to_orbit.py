@@ -13,6 +13,8 @@ from astropy.io.fits import HDUList
 
 
 FILE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
+REFERENCE_JD = 2460392.400856  # Reference Julian Date
+RAD_TO_ARCSEC = 206265.0  # Conversion factor
 
 def xy_to_rthet(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Convert Cartesian (x, y) coordinates to polar (r, θ) coordinates.
@@ -151,7 +153,7 @@ def make_orbit(
         - The returned angle is the true anomaly plus omega, normalized to [0, 2π]
     """
     period = np.sqrt(a**3) * 365.25
-    mean_anomaly = 2 * np.pi * (phase0 + (times - 0) / period)
+    mean_anomaly = 2 * np.pi * (phase0 + times / period)
     eccentric_anomaly = solve_kepler(mean_anomaly, e)
     
     # Convert eccentric anomaly to true anomaly using the tangent half-angle formula
@@ -293,10 +295,7 @@ def dist_to_parallax(
         >>> dt = 4.0  # days
         >>> parallax, sin_sun = dist_to_parallax(time, r, theta, dt)
     """
-    # Calculate Earth's position at observation time
-    REFERENCE_JD = 2460392.400856  # Reference Julian Date
-    RAD_TO_ARCSEC = 206265.0  # Conversion factor
-    
+    # Calculate Earth's position at observation time    
     theta_earth = 2 * np.pi / 365.25 * (time - REFERENCE_JD)
     r_earth = 1  # Earth's orbital radius in AU
     
@@ -367,7 +366,6 @@ def dist_to_r(
         stability and clarity.
     """
     # Calculate Earth's angular position
-    REFERENCE_JD = 2460392.400856
     theta_earth = 2 * np.pi / 365.25 * (time - REFERENCE_JD)
 
     # Calculate heliocentric distance using law of sines
@@ -1051,6 +1049,7 @@ def calc_fit(
    rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    samples: npt.NDArray[np.float64],
+   startdate: float,
    truths: Optional[Sequence[float]] = None,
    default_plot_period: float = 10
 ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -1064,6 +1063,7 @@ def calc_fit(
         rs_fit: Observed radial distances in AU
         thetas_fit: Observed angular positions in radians
         samples: MCMC/nested sampling posterior samples for orbital parameters
+        startdate: starting JD for all orbits
         truths: True orbital parameters [phase0, a, e, omega] if known
         default_plot_period: Default orbital period in years if truths not provided
 
@@ -1076,7 +1076,7 @@ def calc_fit(
     if truths is not None:
         a = truths[1]
         period = 365.25*np.sqrt(a**3)
-        ptimes = np.linspace(0, 2*period,1000)
+        ptimes = np.linspace(startdate, startdate+2*period,1000)
         true_r, true_theta = make_orbit(ptimes, *truths)
     else:
         period = default_plot_period*365.25 #years
@@ -1084,7 +1084,8 @@ def calc_fit(
     
     ### Make posterior draws
     ndraws = 50
-    ptimes = np.linspace(0, 2*period,1000) 
+    ptimes = np.linspace(startdate, startdate+2*period,1000)
+    # print(ptimes/365.25 - startdate/365.25)
     rs = np.empty((ndraws, ptimes.size))
     thetas = np.empty((ndraws, ptimes.size))
     for i in range(ndraws):
@@ -1097,6 +1098,7 @@ def plot_fit_animation(
    rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    samples: npt.NDArray[np.float64],
+   fit_index: int = 1,
    truths: Optional[Sequence[float]] = None,
    default_plot_period: float = 3
 ) -> Figure:
@@ -1118,13 +1120,19 @@ def plot_fit_animation(
         Matplotlib animation containing the orbital fit plot
     """
     ### Make the arrays
-    ptimes, rs, thetas, true_r, true_theta,= calc_fit(rs_fit, thetas_fit, samples, truths, default_plot_period)
+    print(dates)
+    # startdate = float(Time(dates[0],format='iso').format =)
+    startdate = Time(dates[0],format='iso')
+    startdate.format='jd'
+    startdate = float(startdate.value)
+    ptimes, rs, thetas, true_r, true_theta,= calc_fit(rs_fit, thetas_fit, samples, startdate,  truths, default_plot_period)
 
     ### Get limits
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     ### Make the initial figure
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
+    fig.suptitle(f"Orbit Fit {fit_index}")
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1137,7 +1145,7 @@ def plot_fit_animation(
     ax.set_rmax(rmax)
 
     ### Draw Earth and Jupiter
-    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
+    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='b',label='Earth\'s orbit')
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     ### Draw observed points
@@ -1147,42 +1155,71 @@ def plot_fit_animation(
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
     ### Time placeholder
     dt = (ptimes[1]-ptimes[0])/365.25
-    # print(ptimes)
-    time_template = 'Date = %.1f'
-    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    time_template = 'Date = '
+    time_text = ax.text(0.05, 0.95, '', transform=ax.transAxes)
 
-    ### Legend
-
-    ### Text with orbital parameters 
-
+     ### Text with orbital parameters 
+    astr = str(np.round(med[1],2))+r'$^{+'+str(np.round(high[1]-med[1],2))+'}_{-'+str(np.round(med[1] - low[1],2))+'}$ AU'
+    tstr = str(np.round(med[1]**(3/2.),2))+r'$^{+'+str(np.round(high[1]**(3/2.) - med[1]**(3/2.),2))+'}_{-'+str(np.round(med[1]**(3/2.) - low[1]**(3/2.),2))+'}$ years'
+    estr = str(np.round(med[2],3))+r'$^{+'+str(np.round(high[2]-med[2],3))+'}_{-'+str(np.round(med[2] - low[2],3))+'}$'
+    ostr = str(np.round(med[3]*180/np.pi,1))+r'$^{+'+str(np.round(high[3]*180/np.pi-med[3]*180/np.pi,1))+'}_{-'+str(np.round(med[3]*180/np.pi - low[3]*180/np.pi,1))+'}$ degrees'
+    afit = ax.text(0.05,0.9, 'Fit semi-major axis = '+astr,transform=ax.transAxes)
+    tfit = ax.text(0.05,0.85, 'Fit orbital period = '+tstr,transform=ax.transAxes)
+    efit = ax.text(0.05,0.8, 'Fit eccentricity = '+estr,transform=ax.transAxes)
+    ofit = ax.text(0.05,0.75, 'Fit longitude of perihelion = '+ostr,transform=ax.transAxes)
 
     ### Set up objects for plotting
-    ### FIXME add animation of Earth
+    ### FIXME add animation of Earth and other plants
+    thetas_earth = 2 * np.pi / 365.25 * (ptimes - REFERENCE_JD)
     lines = []
     pts = []
+    datestrs = []
     for i in range(rs.shape[0]):
         line, = ax.plot(0, 0,color='r',alpha=0.1)
         lines.append(line)
         pt, = ax.plot(0,0,'o',color='r')
         pts.append(pt)
+    for i in range(rs.shape[1]):
+        datestr = Time(i*dt+2025,format='jyear')
+        datestr.format='isot'
+        datestrs.append(datestr.value.split('T')[0])
+        # print(datestrs)
+
+    ani_running = True
+    ### Set up click to start/stop
+    def onClick(event):
+        nonlocal ani_running
+        if ani_running:
+            ani.event_source.stop()
+            ani_running = False
+        else:
+            ani.event_source.start()
+            ani_running = True
+
 
     ### Animation loop
+    print(thetas)
+    print(rs.shape,thetas.shape)
     def animate(i):
-        for j,line in enumerate(lines):
+        # print(i)
+        thisdate = datestrs[i] 
+        time_text.set_text(time_template + thisdate)
+        for j in range(rs.shape[0]):
             thisr = rs[j,:i]
             thistheta = thetas[j,:i]
-            line.set_data(thistheta, thisr)
-            # pt[j].set_data(thetas[j,i],rs[j,i])
-            # ax.scatter(thetas[j,i],rs[j,i])
-            #### Fix the date printing to be the actual date of the fitting epoch
-            time_text.set_text(time_template % (i*dt + 2025))
-        for j, pt in enumerate(pts):
-            pt.set_data([thetas[j,i]],[rs[j,i]])
+            lines[j].set_data(thistheta, thisr)
+            pts[j].set_data([thetas[j,i]],[rs[j,i]])
         return lines, time_text
 
+    fig.canvas.mpl_connect('button_press_event', onClick)
     ### Actually make the animation
-    ani = animation.FuncAnimation(fig,animate,ptimes.size,blit=True)
+    ani = animation.FuncAnimation(fig,animate,frames=len(datestrs),blit=True)
+
+    
+
+
     plt.show()
+    # time.sleep(30)
 
 
     ### Return
