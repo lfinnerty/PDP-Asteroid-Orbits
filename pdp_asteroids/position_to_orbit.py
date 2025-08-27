@@ -1158,7 +1158,7 @@ def plot_fit_animation(
     time_template = 'Date = '
     time_text = ax.text(0.05, 0.95, '', transform=ax.transAxes)
 
-     ### Text with orbital parameters 
+    ### Text with orbital parameters 
     astr = str(np.round(med[1],2))+r'$^{+'+str(np.round(high[1]-med[1],2))+'}_{-'+str(np.round(med[1] - low[1],2))+'}$ AU'
     tstr = str(np.round(med[1]**(3/2.),2))+r'$^{+'+str(np.round(high[1]**(3/2.) - med[1]**(3/2.),2))+'}_{-'+str(np.round(med[1]**(3/2.) - low[1]**(3/2.),2))+'}$ years'
     estr = str(np.round(med[2],3))+r'$^{+'+str(np.round(high[2]-med[2],3))+'}_{-'+str(np.round(med[2] - low[2],3))+'}$'
@@ -1167,13 +1167,19 @@ def plot_fit_animation(
     tfit = ax.text(0.05,0.85, 'Fit orbital period = '+tstr,transform=ax.transAxes)
     efit = ax.text(0.05,0.8, 'Fit eccentricity = '+estr,transform=ax.transAxes)
     ofit = ax.text(0.05,0.75, 'Fit longitude of perihelion = '+ostr,transform=ax.transAxes)
+    sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
+    earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
+    jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
 
     ### Set up objects for plotting
     ### FIXME add animation of Earth and other plants
     thetas_earth = 2 * np.pi / 365.25 * (ptimes - REFERENCE_JD)
+    thetas_jupiter = 2*np.pi/(365.25*11.3)*(ptimes-REFERENCE_JD-352891.)
     lines = []
     pts = []
     datestrs = []
+    earth, = ax.plot(0,0,'o',color='b')
+    jupiter, = ax.plot(0,0,'o',color='m')
     for i in range(rs.shape[0]):
         line, = ax.plot(0, 0,color='r',alpha=0.1)
         lines.append(line)
@@ -1195,15 +1201,25 @@ def plot_fit_animation(
         else:
             ani.event_source.start()
             ani_running = True
-
+    # for i in range(300):
+    #     print(i)
+    #     thisdate = datestrs[i] 
+    #     time_text.set_text(time_template + thisdate)
+    #     earth.set_data([thetas_earth[i]],[1])
+    #     for j in range(rs.shape[0]):
+    #         thisr = rs[j,:i]
+    #         thistheta = thetas[j,:i]
+    #         lines[j].set_data(thistheta, thisr)
+    #         pts[j].set_data([thetas[j,i]],[rs[j,i]])
+    # assert 1==0
 
     ### Animation loop
-    print(thetas)
-    print(rs.shape,thetas.shape)
     def animate(i):
         # print(i)
         thisdate = datestrs[i] 
         time_text.set_text(time_template + thisdate)
+        earth.set_data([thetas_earth[i]],[1])
+        jupiter.set_data([thetas_jupiter[i]],[5.2])
         for j in range(rs.shape[0]):
             thisr = rs[j,:i]
             thistheta = thetas[j,:i]
