@@ -139,5 +139,5 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 
 ## Authors
 
-- Luke Finnerty (lfinnerty@astro.ucla.edu)
+- Luke Finnerty (lfinnert@umich.edu)
 - Evan Anders (evanhanders@gmail.com)
