@@ -231,9 +231,11 @@ class OrbitInvestigation:
         if not self.orbit_fits:
             raise ValueError("No orbit fits available")
         
-        if save_dir:
-            save_path = Path(save_dir)
-            save_path.mkdir(exist_ok=True, parents=True)
+        # if save_dir:
+        #     save_path = Path(save_dir)
+        #     save_path.mkdir(exist_ok=True, parents=True)
+        if not save_dir:
+            save_path = self.group_path
         
         # Prepare data arrays
         dates = sorted(self.data.keys())

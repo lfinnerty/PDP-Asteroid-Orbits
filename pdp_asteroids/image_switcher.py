@@ -54,8 +54,8 @@ class FitsImageSwitcher:
         # Update layout to maintain aspect ratio and remove axis labels
         self.fig.update_layout(
             title_text="Image 1",
-            height=800,
-            width=800,
+            height=500,
+            width=500,
             yaxis=dict(
                 scaleanchor="x",
                 scaleratio=1,
