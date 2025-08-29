@@ -4,7 +4,7 @@ from huggingface_hub import HfApi, snapshot_download, upload_folder
 from .token_handler import TokenHandler
 
 # Default repositories and paths
-DEFAULT_REPO_ID = "hartnellpdp/observations_2024"
+DEFAULT_REPO_ID = "hartnellpdp/observations_2025"
 DEFAULT_WRITE_FOLDER = Path("/content/new_observations/")
 
 class HuggingFaceManager:

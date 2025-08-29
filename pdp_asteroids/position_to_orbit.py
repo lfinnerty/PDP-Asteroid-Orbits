@@ -1120,8 +1120,6 @@ def plot_fit_animation(
         Matplotlib animation containing the orbital fit plot
     """
     ### Make the arrays
-    print(dates)
-    # startdate = float(Time(dates[0],format='iso').format =)
     startdate = Time(dates[0],format='iso')
     startdate.format='jd'
     startdate = float(startdate.value)
@@ -1189,7 +1187,6 @@ def plot_fit_animation(
         datestr = Time(i*dt+2025,format='jyear')
         datestr.format='isot'
         datestrs.append(datestr.value.split('T')[0])
-        # print(datestrs)
 
     ani_running = True
     ### Set up click to start/stop

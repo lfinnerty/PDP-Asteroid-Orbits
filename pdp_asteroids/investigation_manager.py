@@ -214,10 +214,12 @@ class OrbitInvestigation:
         return figures
 
 
-    def plot_orbit_animation(self, save_dir: Optional[str] = None) -> List[plt.Figure]:
-        """Plot all stored orbit fits.
+    def plot_orbit_animation(self, num: Optional[int] = -1,
+                              save_dir: Optional[str] = None) -> List[plt.Figure]:
+        """Plot stored orbit fits.
         
         Args:
+            num: Index of orbit fit to plot, defaults to -1 (last orbit plotted)
             save_dir: Optional directory to save plot files
             
         Returns:
@@ -239,8 +241,17 @@ class OrbitInvestigation:
         thetas = np.array([self.data[d].theta for d in dates])
         
         animations = []
+        nfits = len(self.orbit_fits.items())
+        ### If -1 is given (default), just does the last animation
+        ### This is intended to let the students go back to a previous fit
+        ### and see how things have changed if they want to
+        ### 1 index for the student's clarity
+        if num ==-1: 
+            num = nfits-1
+        else:
+            num = num-1
         for fit_index, samples in self.orbit_fits.items():
-            if fit_index ==0:
+            if fit_index == num:
                 ani = plot_fit_animation(dates, rs, thetas, samples, fit_index+1)
 
                 if save_dir:
