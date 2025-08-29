@@ -242,7 +242,7 @@ class OrbitInvestigation:
         rs = np.array([self.data[d].r for d in dates])
         thetas = np.array([self.data[d].theta for d in dates])
         
-        animations = []
+        # animations = []
         nfits = len(self.orbit_fits.items())
         ### If -1 is given (default), just does the last animation
         ### This is intended to let the students go back to a previous fit
@@ -258,10 +258,8 @@ class OrbitInvestigation:
 
                 if save_dir:
                     ani.save(save_path / f"orbit_fit_{fit_index+1}.gif")
-                
-                animations.append(ani)
         
-        return animations
+        return ani
     
     def clear_investigation(self, confirm: bool = True) -> None:
         """Clear local investigation data and reset the investigation state.
