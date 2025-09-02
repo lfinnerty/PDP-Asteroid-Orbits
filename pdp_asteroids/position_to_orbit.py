@@ -1000,7 +1000,7 @@ def plot_fit(
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle("Orbit Fit 3"+str(thetas_fit.size))
+    # fig.suptitle("Orbit Fit 3"+str(thetas_fit.size))
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1180,6 +1180,7 @@ def plot_fit_animation(
     sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
     earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
     jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
+    asteroidstr = ax.text(0.75,0.0,'Possible asteroid orbits',color='r',transform=ax.transAxes)
 
     ### Set up objects for plotting
     ### FIXME add animation of Earth and other plants
