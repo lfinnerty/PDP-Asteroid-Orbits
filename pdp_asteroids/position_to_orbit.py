@@ -996,7 +996,7 @@ def plot_fit(
         Matplotlib figure containing the orbital fit plot
     """
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle(f"Orbit Fit "+len(dates))
+    fig.suptitle("Orbit Fit "+str(len(dates)))
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
