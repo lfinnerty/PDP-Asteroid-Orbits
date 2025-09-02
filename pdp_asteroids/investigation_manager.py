@@ -255,9 +255,7 @@ class OrbitInvestigation:
         for fit_index, samples in self.orbit_fits.items():
             if fit_index == num:
                 ani = plot_fit_animation(dates, rs, thetas, samples, fit_index+1)
-
-                if save_dir:
-                    ani.save(save_path / f"orbit_fit_{fit_index+1}.gif")
+                ani.save(save_path / f"orbit_fit_{fit_index+1}.gif")
         
         return ani
     
