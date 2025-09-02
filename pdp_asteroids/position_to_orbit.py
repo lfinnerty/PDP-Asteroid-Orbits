@@ -995,8 +995,42 @@ def plot_fit(
     Returns:
         Matplotlib figure containing the orbital fit plot
     """
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(10,10))
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
+    fig.suptitle(f"Orbit Fit {fit_index}")
+    ax.set_aspect('equal')
+    ax.autoscale(enable=False)
+    ax.axis('off')
+    ax.grid(False)
+    rmax = 2*med[1]+2*(high[1]-med[1])
+    if np.any(rs_fit < rmax) or rmax < 2.:
+        rmax = 2*np.max(rs_fit)
+        if rmax  < 2:
+            rmax = 2.
+    ax.set_rmax(rmax)
     ### Plot Earth
+    ### Draw Earth and Jupiter
+    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='b',label='Earth\'s orbit')
+    ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
+    
+    ### Draw observed points
+    for i in range(len(rs_fit)):
+        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
+        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
+    ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
+
+    ### Text with orbital parameters 
+    astr = str(np.round(med[1],2))+r'$^{+'+str(np.round(high[1]-med[1],2))+'}_{-'+str(np.round(med[1] - low[1],2))+'}$ AU'
+    tstr = str(np.round(med[1]**(3/2.),2))+r'$^{+'+str(np.round(high[1]**(3/2.) - med[1]**(3/2.),2))+'}_{-'+str(np.round(med[1]**(3/2.) - low[1]**(3/2.),2))+'}$ years'
+    estr = str(np.round(med[2],3))+r'$^{+'+str(np.round(high[2]-med[2],3))+'}_{-'+str(np.round(med[2] - low[2],3))+'}$'
+    ostr = str(np.round(med[3]*180/np.pi,1))+r'$^{+'+str(np.round(high[3]*180/np.pi-med[3]*180/np.pi,1))+'}_{-'+str(np.round(med[3]*180/np.pi - low[3]*180/np.pi,1))+'}$ degrees'
+    afit = ax.text(0.05,0.9, 'Fit semi-major axis = '+astr,transform=ax.transAxes)
+    tfit = ax.text(0.05,0.85, 'Fit orbital period = '+tstr,transform=ax.transAxes)
+    efit = ax.text(0.05,0.8, 'Fit eccentricity = '+estr,transform=ax.transAxes)
+    ofit = ax.text(0.05,0.75, 'Fit longitude of perihelion = '+ostr,transform=ax.transAxes)
+    sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
+    earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
+    jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
+    asteroidstr = ax.text(0.8,0.0,'Possible asteroid orbits',color='r',alpha=0.05,transform=ax.transAxes)
 
     ### Plot asteroid
     if truths is not None:
@@ -1015,32 +1049,12 @@ def plot_fit(
             ax.plot(thetas,rs,color='r',alpha=0.05)
         else:
             ax.plot(thetas,rs,color='r',alpha=0.05,label='Possible asteroid orbits')
-    ax.plot(np.linspace(0,2*np.pi,100),np.ones(100),color='g',label='Earth\'s orbit')
-    ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
+   
     
     for i in range(len(rs_fit)):
         ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
         ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
-
-    ### Turn off axes ticks, set axis limits based on semi-major axis
-    # ax.grid(False)
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    a_low, a_med, a_high = np.nanpercentile(samples[:,1], [0.05,0.5,0.95])
-    rmax = 2*a_med+2*(a_high-a_med)
-    if np.any(rs_fit < rmax) or rmax < 2.:
-        rmax = 2*np.max(rs_fit)
-        if rmax  < 2:
-            rmax = 2.
-    ax.set_rmax(rmax)
-    ax.legend()
-
-    ### print orbital period
-    period = np.round(np.sqrt(a_med**3),2)
-    errp_low = np.round(np.sqrt(a_med**3) - np.sqrt(a_low**3),2 )
-    errp_high = np.round(np.sqrt(a_high**3) - np.sqrt(a_med**3),2)
-    fig.text(0.1,0.8,r'Measured orbital period = '+str(period)+' +'+str(errp_low) + ' / -'+str(errp_high)+' years',fontsize=14)
 
     return fig
 
