@@ -1092,7 +1092,7 @@ def calc_fit(
         true_r, true_theta = np.array([]), np.array([])
     
     ### Make posterior draws
-    ndraws = 5
+    ndraws = 30
     ptimes = np.linspace(startdate, startdate+2*period,1000)
     # print(ptimes/365.25 - startdate/365.25)
     rs = np.empty((ndraws, ptimes.size))
@@ -1240,10 +1240,6 @@ def plot_fit_animation(
     # fig.canvas.mpl_connect('button_press_event', onClick)
     ### Actually make the animation
     ani = animation.FuncAnimation(fig,animate,frames=len(datestrs),blit=True)
-    # plt.show()
-    # time.sleep(30)
-
-
     ### Return
     return ani
 
