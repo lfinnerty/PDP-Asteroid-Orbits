@@ -995,6 +995,10 @@ def plot_fit(
     Returns:
         Matplotlib figure containing the orbital fit plot
     """
+
+     ### Get limits
+    low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
+
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
     fig.suptitle("Orbit Fit "+str(len(dates)))
     ax.set_aspect('equal')
