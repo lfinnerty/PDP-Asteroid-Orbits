@@ -1177,9 +1177,9 @@ def plot_fit_animation(
     tfit = ax.text(0.05,0.85, 'Fit orbital period = '+tstr,transform=ax.transAxes)
     efit = ax.text(0.05,0.8, 'Fit eccentricity = '+estr,transform=ax.transAxes)
     ofit = ax.text(0.05,0.75, 'Fit longitude of perihelion = '+ostr,transform=ax.transAxes)
-    sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
-    earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
-    jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
+    sunstr = ax.text(0.75,0.15,'Sun',color='y',transform=ax.transAxes)
+    earthstr = ax.text(0.75,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
+    jupiterstr = ax.text(0.75,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
     asteroidstr = ax.text(0.75,0.0,'Possible asteroid orbits',color='r',transform=ax.transAxes)
 
     ### Set up objects for plotting
@@ -1237,14 +1237,10 @@ def plot_fit_animation(
             pts[j].set_data([thetas[j,i]],[rs[j,i]])
         return lines, time_text
 
-    fig.canvas.mpl_connect('button_press_event', onClick)
+    # fig.canvas.mpl_connect('button_press_event', onClick)
     ### Actually make the animation
     ani = animation.FuncAnimation(fig,animate,frames=len(datestrs),blit=True)
-
-    
-
-
-    plt.show()
+    # plt.show()
     # time.sleep(30)
 
 
