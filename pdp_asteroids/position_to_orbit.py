@@ -1000,7 +1000,7 @@ def plot_fit(
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle("Orbit Fit "+str(thetas_fit.size))
+    fig.suptitle("Orbit Fit 3"+str(thetas_fit.size))
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1031,10 +1031,10 @@ def plot_fit(
     tfit = ax.text(0.05,0.85, 'Fit orbital period = '+tstr,transform=ax.transAxes)
     efit = ax.text(0.05,0.8, 'Fit eccentricity = '+estr,transform=ax.transAxes)
     ofit = ax.text(0.05,0.75, 'Fit longitude of perihelion = '+ostr,transform=ax.transAxes)
-    sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
-    earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
-    jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
-    asteroidstr = ax.text(0.8,0.0,'Possible asteroid orbits',color='r',transform=ax.transAxes)
+    sunstr = ax.text(0.75,0.15,'Sun',color='y',transform=ax.transAxes)
+    earthstr = ax.text(0.75,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
+    jupiterstr = ax.text(0.75,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
+    asteroidstr = ax.text(0.75,0.0,'Possible asteroid orbits',color='r',transform=ax.transAxes)
 
     ### Plot asteroid
     if truths is not None:
