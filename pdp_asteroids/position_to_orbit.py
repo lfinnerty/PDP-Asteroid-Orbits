@@ -1000,7 +1000,7 @@ def plot_fit(
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle("Orbit Fit "+str(len(dates)+1))
+    fig.suptitle("Orbit Fit "+str(thetas_fit.size))
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1130,7 +1130,8 @@ def plot_fit_animation(
     """
     ### Make the arrays
     startdate = Time(dates[0],format='iso')
-    startyr = startdate.format='jyear'
+    startdate.format='jyear'
+    startyr = float(startdate.value)
     startdate.format='jd'
 
     startdate = float(startdate.value)
@@ -1195,7 +1196,7 @@ def plot_fit_animation(
         pt, = ax.plot(0,0,'o',color='r')
         pts.append(pt)
     for i in range(rs.shape[1]):
-        datestr = Time(i*dt+startyr.value,format='jyear')
+        datestr = Time(i*dt+startyr,format='jyear')
         datestr.format='isot'
         datestrs.append(datestr.value.split('T')[0])
 
