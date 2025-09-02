@@ -1083,7 +1083,7 @@ def calc_fit(
         true_r, true_theta = np.array([]), np.array([])
     
     ### Make posterior draws
-    ndraws = 50
+    ndraws = 5
     ptimes = np.linspace(startdate, startdate+2*period,1000)
     # print(ptimes/365.25 - startdate/365.25)
     rs = np.empty((ndraws, ptimes.size))
