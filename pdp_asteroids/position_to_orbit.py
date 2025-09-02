@@ -996,11 +996,11 @@ def plot_fit(
         Matplotlib figure containing the orbital fit plot
     """
 
-     ### Get limits
+    ### Get limits
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle("Orbit Fit "+str(len(dates)))
+    fig.suptitle("Orbit Fit "+str(len(dates)+1))
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1034,7 +1034,7 @@ def plot_fit(
     sunstr = ax.text(0.8,0.15,'Sun',color='y',transform=ax.transAxes)
     earthstr = ax.text(0.8,0.1,'Earth\'s orbit',color='b',transform=ax.transAxes)
     jupiterstr = ax.text(0.8,0.05,'Jupiter\'s orbit',color='m',transform=ax.transAxes)
-    asteroidstr = ax.text(0.8,0.0,'Possible asteroid orbits',color='r',alpha=0.05,transform=ax.transAxes)
+    asteroidstr = ax.text(0.8,0.0,'Possible asteroid orbits',color='r',transform=ax.transAxes)
 
     ### Plot asteroid
     if truths is not None:
@@ -1049,16 +1049,7 @@ def plot_fit(
     ptimes = np.linspace(0, 2*period,300)
     for i in range(200):
         rs, thetas = make_orbit(ptimes, *samples[i])
-        if i!=0:
-            ax.plot(thetas,rs,color='r',alpha=0.05)
-        else:
-            ax.plot(thetas,rs,color='r',alpha=0.05,label='Possible asteroid orbits')
-   
-    
-    for i in range(len(rs_fit)):
-        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
-        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
-    ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
+        ax.plot(thetas,rs,color='r',alpha=0.05)
 
     return fig
 
@@ -1139,7 +1130,9 @@ def plot_fit_animation(
     """
     ### Make the arrays
     startdate = Time(dates[0],format='iso')
+    startyr = startdate.format='jyear'
     startdate.format='jd'
+
     startdate = float(startdate.value)
     ptimes, rs, thetas, true_r, true_theta,= calc_fit(rs_fit, thetas_fit, samples, startdate,  truths, default_plot_period)
 
@@ -1202,7 +1195,7 @@ def plot_fit_animation(
         pt, = ax.plot(0,0,'o',color='r')
         pts.append(pt)
     for i in range(rs.shape[1]):
-        datestr = Time(i*dt+2025,format='jyear')
+        datestr = Time(i*dt+startyr.value,format='jyear')
         datestr.format='isot'
         datestrs.append(datestr.value.split('T')[0])
 
