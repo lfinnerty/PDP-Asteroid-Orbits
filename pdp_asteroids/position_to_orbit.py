@@ -1001,7 +1001,7 @@ def plot_fit(
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    fig.suptitle(f"Orbit Fit {fit_index+1}")
+    fig.suptitle(f"Orbit Fit {fit_index}")
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1019,8 +1019,8 @@ def plot_fit(
     
     ### Draw observed points
     for i in range(fit_index):
-        ax.scatter(thetas_fit[:i], rs_fit[:i], color='k',alpha=1.0,s=30,zorder=400)
-        ax.text(thetas_fit[:i]-2e-2,rs_fit[:i]+1e-2,dates[:i])
+        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
+        ax.text(thetas_fit[:i]-2e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Text with orbital parameters 
