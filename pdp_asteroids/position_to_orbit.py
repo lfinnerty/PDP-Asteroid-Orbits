@@ -1018,9 +1018,9 @@ def plot_fit(
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     ### Draw observed points
-    for i in range(fit_index):
+    for i in range(fit_index-1):
         ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
-        ax.text(thetas_fit[:i]-2e-2,rs_fit[i]+1e-2,dates[i])
+        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Text with orbital parameters 
