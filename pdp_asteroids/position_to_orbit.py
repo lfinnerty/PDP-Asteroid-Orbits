@@ -975,6 +975,7 @@ def plot_fit(
    rs_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    thetas_fit: Union[Sequence[float], npt.NDArray[np.float64]],
    samples: npt.NDArray[np.float64],
+   fit_index: int = 1,
    truths: Optional[Sequence[float]] = None,
    default_plot_period: float = 10
 ) -> Figure:
@@ -1000,7 +1001,7 @@ def plot_fit(
     low, med, high = np.nanpercentile(samples, [0.05,0.5,0.95],axis=0)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'},figsize=(6,6))
-    # fig.suptitle("Orbit Fit 3"+str(thetas_fit.size))
+    fig.suptitle(f"Orbit Fit {fit_index+1}")
     ax.set_aspect('equal')
     ax.autoscale(enable=False)
     ax.axis('off')
@@ -1017,9 +1018,9 @@ def plot_fit(
     ax.plot(np.linspace(0,2*np.pi,100),5.2*np.ones(100),color='m',label='Jupiter\'s orbit')
     
     ### Draw observed points
-    for i in range(len(rs_fit)):
-        ax.scatter(thetas_fit[i], rs_fit[i], color='k',alpha=1.0,s=30,zorder=400)
-        ax.text(thetas_fit[i]-2e-2,rs_fit[i]+1e-2,dates[i])
+    for i in range(fit_index):
+        ax.scatter(thetas_fit[:i], rs_fit[:i], color='k',alpha=1.0,s=30,zorder=400)
+        ax.text(thetas_fit[:i]-2e-2,rs_fit[:i]+1e-2,dates[:i])
     ax.scatter(0,0,s=120,color='y',marker='*', label='Sun')
 
     ### Text with orbital parameters 

@@ -203,8 +203,7 @@ class OrbitInvestigation:
         
         figures = []
         for fit_index, samples in self.orbit_fits.items():
-            fig = plot_fit(dates, rs, thetas, samples)
-            fig.suptitle(f"Orbit Fit {fit_index+1}")
+            fig = plot_fit(dates, rs, thetas, samples,fit_index=fit_index)
             
             if save_dir:
                 fig.savefig(save_path / f"orbit_fit_{fit_index+1}.png")
