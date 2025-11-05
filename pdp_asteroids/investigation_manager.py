@@ -296,25 +296,25 @@ class OrbitInvestigation:
         )
         
         # Create empty files to prevent re-downloading old data
-        if self.hf_manager:
-            try:
-                # Create empty pickle files
-                with open(self.measurements_file, 'wb') as f:
-                    pickle.dump({}, f)
-                with open(self.orbits_file, 'wb') as f:
-                    pickle.dump({}, f)
+        # if self.hf_manager:
+        #     try:
+        #         # Create empty pickle files
+        #         with open(self.measurements_file, 'wb') as f:
+        #             pickle.dump({}, f)
+        #         with open(self.orbits_file, 'wb') as f:
+        #             pickle.dump({}, f)
                 
-                # Push empty files to override remote data
-                self.hf_manager.push_to_hf(
-                    folder=self.group_path,
-                    repo_id=self.repo_id,
-                    commit_message=f"Reset investigation data for {self.group}"
-                )
-            except Exception as e:
-                print(
-                    f"Warning: Failed to push empty files to remote: {str(e)}\n"
-                    "Old data may be retrieved on next pull."
-                )
+        #         # Push empty files to override remote data
+        #         self.hf_manager.push_to_hf(
+        #             folder=self.group_path,
+        #             repo_id=self.repo_id,
+        #             commit_message=f"Reset investigation data for {self.group}"
+        #         )
+        #     except Exception as e:
+        #         print(
+        #             f"Warning: Failed to push empty files to remote: {str(e)}\n"
+        #             "Old data may be retrieved on next pull."
+        #         )
     
     def _save_measurements(self) -> None:
         """Save observation data to local pickle file."""
