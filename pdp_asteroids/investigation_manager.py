@@ -132,7 +132,7 @@ class OrbitInvestigation:
         
         # Save and sync data
         self._save_measurements()
-        self._sync_measurements_to_remote()
+        # self._sync_measurements_to_remote()
     
     def fit_orbit(self, **kwargs) -> np.ndarray:
         """Fit an orbit to all processed observations.
@@ -173,7 +173,7 @@ class OrbitInvestigation:
         
         # Save and sync fit results
         self._save_orbits()
-        self._sync_orbits_to_remote()
+        # self._sync_orbits_to_remote()
         
         return samples
     
